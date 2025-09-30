@@ -39,3 +39,6 @@ venv.bak
 # IDE / Editor specific
 .idea/
 .vscode/
+
+node_modules/
+tests/
