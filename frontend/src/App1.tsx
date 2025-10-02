@@ -21,18 +21,28 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { fetchNewTickets } from './services/api';
-import type { NewTicketItem } from './types/api.d';
+import { fetchNewTickets, fetchGeneralStats } from './services/api';
+import type { NewTicketItem, GeneralStats } from './types/api.d';
 
 export default function App1() {
   const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
+  const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
 
   const loadDashboardData = async () => {
+    // Carrega Tickets Novos de forma independente
     try {
       const newTicketsData = await fetchNewTickets();
       setNewTickets(newTicketsData);
     } catch (err) {
-      console.error('Falha ao buscar dados do dashboard (App1):', err);
+      console.error('Falha ao buscar Tickets Novos (App1):', err);
+    }
+
+    // Carrega Métricas Gerais (não impacta Tickets Novos em caso de erro)
+    try {
+      const gs = await fetchGeneralStats();
+      setGeneralStats(gs);
+    } catch (err) {
+      console.error('Falha ao buscar Métricas Gerais (App1):', err);
     }
   };
 
@@ -95,7 +105,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Novos</p>
-                      <p className="text-2xl font-semibold text-gray-900">3</p>
+                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.novos ?? 3)}</p>
                     </div>
                     <div className="w-10 h-10 bg-[#5A9BD4]/10 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-[#5A9BD4]" />
@@ -109,7 +119,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Em Progresso</p>
-                      <p className="text-2xl font-semibold text-gray-900">45</p>
+                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.em_progresso ?? 45)}</p>
                     </div>
                     <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                       <AlertTriangle className="w-5 h-5 text-orange-600" />
@@ -123,7 +133,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Pendentes</p>
-                      <p className="text-2xl font-semibold text-gray-900">26</p>
+                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.pendentes ?? 26)}</p>
                     </div>
                     <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                       <Clock className="w-5 h-5 text-amber-600" />
@@ -137,7 +147,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Resolvidos</p>
-                      <p className="text-2xl font-semibold text-gray-900">10.2K</p>
+                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.resolvidos ?? 10200)}</p>
                     </div>
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <CheckCircle className="w-5 h-5 text-green-600" />

@@ -4,7 +4,7 @@ from collections import Counter
 
 import glpi_client
 # Apenas a função de stats por nível é necessária agora
-from logic.metrics_logic import generate_level_stats
+from logic.metrics_logic import generate_level_stats, generate_general_stats
 from schemas import GeneralStats, LevelStats
 
 # Cria um novo roteador com um prefixo e tags para a documentação
@@ -57,24 +57,8 @@ async def get_general_stats_endpoint():
 
     try:
         headers = glpi_client.authenticate(API_URL, APP_TOKEN, USER_TOKEN)
-        # 1. Busca os dados detalhados por nível
-        level_data = generate_level_stats(api_url=API_URL, session_headers=headers)
-
-        # 2. Calcula os totais gerais somando os valores de cada nível
-        total_stats = Counter()
-        for level_name, level_data_dict in level_data.items():
-            # level_data_dict é um dicionário com as contagens por status
-            for status_name, count in level_data_dict.items():
-                if status_name != 'total':  # Ignora o campo 'total' para evitar duplicação
-                    total_stats[status_name] += count
-
-        # 3. Formata para o schema de resposta esperado
-        general_stats = {
-            "novos": total_stats.get('novos', 0),
-            "em_progresso": total_stats.get('em_progresso', 0),
-            "pendentes": total_stats.get('pendentes', 0),
-            "resolvidos": total_stats.get('resolvidos', 0),
-        }
+        # Contagem direta no GLPI por Status (campo 12), alinhada ao script de validação
+        general_stats = generate_general_stats(api_url=API_URL, session_headers=headers)
         return general_stats
 
     except Exception as e:
