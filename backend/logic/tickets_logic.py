@@ -14,8 +14,8 @@ def get_new_tickets(api_url: str, session_headers: Dict[str, str]) -> List[Dict[
     """
     try:
         criteria = [{"field": "12", "searchtype": "equals", "value": "1"}]  # Status = Novo
-        # Campos: requisitante, técnico, recipiente, último atualizador, data de criação
-        forcedisplay = ["4", "5", "6", "71", "15"]
+        # Campos: Título(1), ID(2), Requisitante(4), Técnico(5), Recipiente(6), Último Atualizador(71), Data de Criação(15)
+        forcedisplay = ["1", "2", "4", "5", "6", "71", "15"]
         
         tickets = glpi_client.search_paginated(
             session_headers, api_url, "Ticket", criteria, forcedisplay=forcedisplay,
@@ -28,6 +28,37 @@ def get_new_tickets(api_url: str, session_headers: Dict[str, str]) -> List[Dict[
         # Ordena por ID (campo '2') em ordem decrescente para obter os mais recentes
         tickets_sorted = sorted(tickets, key=lambda x: x.get("2", 0), reverse=True)[:10]
         
+        # Otimização: Coletar IDs de requisitantes (campo 4) para buscar nomes em lote
+        def get_first_numeric_id(value):
+            if value is None:
+                return None
+            # Campo 4 pode ser string numérica ou lista de IDs
+            if isinstance(value, list):
+                for v in value:
+                    try:
+                        v_str = str(v)
+                        if v_str.isdigit():
+                            return int(v_str)
+                    except Exception:
+                        continue
+                return None
+            # Caso seja string/numero único
+            try:
+                v_str = str(value)
+                if v_str.isdigit():
+                    return int(v_str)
+            except Exception:
+                pass
+            return None
+
+        requester_ids = []
+        for ticket in tickets_sorted:
+            rid = get_first_numeric_id(ticket.get("4"))
+            if isinstance(rid, int):
+                requester_ids.append(rid)
+
+        user_names_map = glpi_client.get_user_names_in_batch_with_fallback(session_headers, api_url, requester_ids)
+
         result = []
         for ticket in tickets_sorted:
             ticket_id = ticket.get("2")
@@ -41,17 +72,11 @@ def get_new_tickets(api_url: str, session_headers: Dict[str, str]) -> List[Dict[
             except (ValueError, TypeError):
                 data_formatada = data_ticket[:10] if data_ticket else ""
             
-            # Lógica simplificada para encontrar o nome do solicitante
+            # Lógica OTIMIZADA para encontrar o nome do solicitante
             solicitante = "Não informado"
-            requester_id = ticket.get("4") # ID do requisitante
-            if requester_id and requester_id != "0":
-                try:
-                    user_url = f"{api_url}/User/{requester_id}"
-                    user_response = requests.get(user_url, headers=session_headers)
-                    if user_response.status_code == 200:
-                        solicitante = user_response.json().get("name", f"ID:{requester_id}")
-                except requests.RequestException:
-                    solicitante = f"ID:{requester_id} (Erro de rede)"
+            requester_id = get_first_numeric_id(ticket.get("4"))
+            if isinstance(requester_id, int) and requester_id in user_names_map:
+                solicitante = user_names_map[requester_id]
 
             result.append({
                 "id": ticket_id,

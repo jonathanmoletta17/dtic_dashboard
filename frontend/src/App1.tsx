@@ -1,4 +1,8 @@
 import { 
+  useState, 
+  useEffect 
+} from 'react';
+import { 
   Bell, 
   ChevronLeft, 
   RotateCcw, 
@@ -17,8 +21,24 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { fetchNewTickets } from './services/api';
+import type { NewTicketItem } from './types/api.d';
 
 export default function App1() {
+  const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
+
+  const loadDashboardData = async () => {
+    try {
+      const newTicketsData = await fetchNewTickets();
+      setNewTickets(newTicketsData);
+    } catch (err) {
+      console.error('Falha ao buscar dados do dashboard (App1):', err);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -406,8 +426,8 @@ export default function App1() {
                     Tickets Novos
                   </CardTitle>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-md">8 tickets</span>
-                    <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100">
+                    <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-md">{newTickets ? `${newTickets.length} tickets` : '0 tickets'}</span>
+                    <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700 hover:bg-gray-100" onClick={loadDashboardData}>
                       <RotateCcw className="w-4 h-4" />
                     </Button>
                   </div>
@@ -422,108 +442,19 @@ export default function App1() {
                   }}
                 >
                   <div className="space-y-3">
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10387</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
+                    {(newTickets ?? []).map((ticket) => (
+                      <div key={`${ticket.id}-${ticket.data}-${ticket.titulo}`} className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#{ticket.id ?? '-'}</span>
+                          <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Novo</Badge>
+                        </div>
+                        <h4 className="font-medium text-gray-900 mb-2 text-sm">{ticket.titulo}</h4>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-700 font-medium">{ticket.solicitante}</span>
+                          <span className="text-gray-500">{ticket.data}</span>
+                        </div>
                       </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Acesso a Sistema - Geral - LIBERAR ACESSO</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Dados do formulário/Dados Gerais/SOLICITAÇÃO É PARA SEU USUÁRIO? SIM/I TIPO: LIBERAR ACESSO/SISTEMA: Geral/ORGANIZAÇÃO: Cases...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Angelo Diego da Rosa</span>
-                        <span className="text-gray-500">11/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10366</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Atendimento ao usuário Suporte - EDIFÍCIO GUAÍBA</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">LOCALIZAÇÃO: EDIFÍCIO GUAÍBA - ITANDAR DIREÇÃO GERAL DO OVG RAMAL: 3245753 - MARILEA para solicitar documentos anexado.</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Marileila Braun</span>
-                        <span className="text-gray-500">11/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10203</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">TESTE // NÃO MEXER</h4>
-                      <div className="flex items-center justify-between text-xs mt-2">
-                        <span className="text-gray-400">-</span>
-                        <span className="text-gray-400">-</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10455</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Solicitação de Suporte - Sistema ERP</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Usuário relatando problema de acesso ao módulo financeiro do sistema ERP. Erro apresentado ao tentar acessar relatórios...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Carlos Silva</span>
-                        <span className="text-gray-500">12/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10456</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Instalação de Software - AutoCAD</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Solicitação para instalação do AutoCAD 2024 na estação de trabalho do setor de engenharia. Licença já aprovada...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Maria Santos</span>
-                        <span className="text-gray-500">12/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10457</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Manutenção Preventiva - Servidor</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Agendamento de manutenção preventiva no servidor principal. Verificação de hardware e atualização de segurança...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">João Oliveira</span>
-                        <span className="text-gray-500">12/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10458</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Problema de Conectividade - Wi-Fi</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Usuários do 3º andar relatando instabilidade na conexão Wi-Fi. Verificar configuração do access point...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Ana Costa</span>
-                        <span className="text-gray-500">12/09/2025</span>
-                      </div>
-                    </div>
-
-                    <div className="border-l-4 border-[#5A9BD4] bg-[#5A9BD4]/5 p-3 rounded-r-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-1 rounded">#10459</span>
-                        <Badge variant="outline" className="border-[#5A9BD4] text-[#5A9BD4] bg-[#5A9BD4]/10 text-xs">Nova</Badge>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-2 text-sm">Backup de Dados - Departamento Financeiro</h4>
-                      <p className="text-xs text-gray-600 mb-2 line-clamp-2">Solicitação de backup completo dos dados do departamento financeiro antes da migração do sistema...</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700 font-medium">Roberto Lima</span>
-                        <span className="text-gray-500">12/09/2025</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>

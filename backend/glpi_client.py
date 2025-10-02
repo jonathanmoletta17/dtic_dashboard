@@ -156,6 +156,48 @@ def search_paginated(
         raise Exception(f"Erro na busca paginada de {itemtype}: {e}")
 
 
+def get_user_names_in_batch_with_fallback(headers: Dict[str, str], api_url: str, requester_ids: List[int]) -> Dict[int, str]:
+    """
+    Resolve nomes de usuários (requisitantes) a partir de seus IDs.
+    Implementação segura: resolve individualmente via GET /User/{id} para cada ID único.
+    Para listas pequenas (top 10), é suficiente e robusto.
+
+    Args:
+        headers: Headers com Session-Token/App-Token já autenticados.
+        api_url: URL base da API GLPI (inclui /apirest.php).
+        requester_ids: Lista de IDs de usuários para resolver nomes.
+
+    Returns:
+        Dict[int, str]: Mapa de user_id -> "firstname realname" (ou rótulo seguro se não encontrado).
+    """
+    import requests as _requests
+
+    names_map: Dict[int, str] = {}
+    unique_ids = list(sorted(set(int(rid) for rid in requester_ids if isinstance(rid, (int, str)))))
+
+    for user_id in unique_ids:
+        try:
+            user_url = f"{api_url}/User/{user_id}"
+            response = _requests.get(user_url, headers=headers)
+            response.raise_for_status()
+            user_data = response.json()
+
+            # A API pode retornar uma lista mesmo para um único ID
+            if isinstance(user_data, list) and user_data:
+                user_data = user_data[0]
+
+            first_name = user_data.get('firstname', '')
+            last_name = user_data.get('realname', '')
+            full_name = f"{first_name} {last_name}".strip()
+            names_map[user_id] = full_name if full_name else f"Usuário ID {user_id}"
+
+        except _requests.exceptions.RequestException:
+            names_map[user_id] = f"Usuário ID {user_id} (Não Encontrado)"
+        except (IndexError, KeyError, TypeError, ValueError):
+            names_map[user_id] = f"Usuário ID {user_id} (Dados Incompletos)"
+
+    return names_map
+
 def get_tickets(headers: Dict[str, str], api_url: str) -> Dict[str, Any]:
     """
     Busca tickets do GLPI (mantido para compatibilidade).
