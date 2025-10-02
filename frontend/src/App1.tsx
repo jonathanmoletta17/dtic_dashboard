@@ -21,13 +21,14 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { fetchNewTickets, fetchGeneralStats, fetchLevelStats } from './services/api';
-import type { NewTicketItem, GeneralStats, LevelStats } from './types/api.d';
+import { fetchNewTickets, fetchGeneralStats, fetchLevelStats, fetchTechnicianRanking } from './services/api';
+import type { NewTicketItem, GeneralStats, LevelStats, TechnicianRankingItem } from './types/api.d';
 
 export default function App1() {
   const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
   const [levelStats, setLevelStats] = useState<LevelStats | null>(null);
+  const [technicianRanking, setTechnicianRanking] = useState<TechnicianRankingItem[] | null>(null);
 
   const fmt = (n: number | undefined | null) =>
     n !== undefined && n !== null
@@ -58,11 +59,31 @@ export default function App1() {
     } catch (err) {
       console.error('Falha ao buscar Métricas por Nível (App1):', err);
     }
+
+    // Carrega Ranking de Técnicos
+    try {
+      const rk = await fetchTechnicianRanking();
+      setTechnicianRanking(rk);
+    } catch (err) {
+      console.error('Falha ao buscar Ranking de Técnicos (App1):', err);
+    }
   };
 
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Helper para abreviar nome do técnico (Primeiro nome + inicial do último)
+  const shortName = (name: string) => {
+    const parts = (name || '').trim().split(/\s+/);
+    if (parts.length === 0) return '-';
+    if (parts.length === 1) return parts[0];
+    const first = parts[0];
+    const lastInitial = parts[parts.length - 1].charAt(0);
+    return `${first} ${lastInitial}.`;
+  };
+
+  const topRanking = (technicianRanking ?? []).slice(0, 4);
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -367,16 +388,16 @@ export default function App1() {
                   <div className="bg-gradient-to-br from-[#5A9BD4] to-[#4A8BC2] text-white p-3 rounded-lg shadow-sm">
                     <div className="text-center">
                       <Badge className="bg-yellow-500 text-yellow-900 mb-2 font-medium text-xs">#1</Badge>
-                      <p className="text-xs font-medium mb-1">Roberlâncio O.</p>
-                      <p className="text-xs text-blue-100 mb-2">Arquitetos da Silva V.</p>
+                      <p className="text-xs font-medium mb-1">{topRanking[0] ? shortName(topRanking[0].tecnico) : '-'}</p>
+                      <p className="text-xs text-blue-100 mb-2">{topRanking[0]?.tecnico ?? '-'}</p>
                       <div className="space-y-1">
                         <div className="text-xs">
                           <span className="text-blue-100">Total:</span>
-                          <span className="font-medium ml-1">2.723</span>
+                          <span className="font-medium ml-1">{topRanking[0] ? fmt(topRanking[0].tickets) : '-'}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-blue-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">2.710</span>
+                          <span className="font-medium ml-1">{topRanking[0] ? fmt(topRanking[0].tickets) : '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -385,16 +406,16 @@ export default function App1() {
                   <div className="bg-gradient-to-br from-slate-600 to-slate-700 text-white p-3 rounded-lg shadow-sm">
                     <div className="text-center">
                       <Badge className="bg-gray-300 text-gray-800 mb-2 font-medium text-xs">#2</Badge>
-                      <p className="text-xs font-medium mb-1">Silvia M.</p>
-                      <p className="text-xs text-slate-200 mb-2">Silvia Glediano Vale</p>
+                      <p className="text-xs font-medium mb-1">{topRanking[1] ? shortName(topRanking[1].tecnico) : '-'}</p>
+                      <p className="text-xs text-slate-200 mb-2">{topRanking[1]?.tecnico ?? '-'}</p>
                       <div className="space-y-1">
                         <div className="text-xs">
                           <span className="text-slate-200">Total:</span>
-                          <span className="font-medium ml-1">1.827</span>
+                          <span className="font-medium ml-1">{topRanking[1] ? fmt(topRanking[1].tickets) : '-'}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-slate-200">Resolvidos:</span>
-                          <span className="font-medium ml-1">1.819</span>
+                          <span className="font-medium ml-1">{topRanking[1] ? fmt(topRanking[1].tickets) : '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -403,16 +424,16 @@ export default function App1() {
                   <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-3 rounded-lg shadow-sm">
                     <div className="text-center">
                       <Badge className="bg-orange-200 text-orange-900 mb-2 font-medium text-xs">#3</Badge>
-                      <p className="text-xs font-medium mb-1">Jorge J.</p>
-                      <p className="text-xs text-orange-100 mb-2">Jorge Antônio Vicente Jr.</p>
+                      <p className="text-xs font-medium mb-1">{topRanking[2] ? shortName(topRanking[2].tecnico) : '-'}</p>
+                      <p className="text-xs text-orange-100 mb-2">{topRanking[2]?.tecnico ?? '-'}</p>
                       <div className="space-y-1">
                         <div className="text-xs">
                           <span className="text-orange-100">Total:</span>
-                          <span className="font-medium ml-1">1.792</span>
+                          <span className="font-medium ml-1">{topRanking[2] ? fmt(topRanking[2].tickets) : '-'}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-orange-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">1.757</span>
+                          <span className="font-medium ml-1">{topRanking[2] ? fmt(topRanking[2].tickets) : '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -421,16 +442,16 @@ export default function App1() {
                   <div className="bg-gradient-to-br from-[#5A9BD4] to-[#4A8BC2] text-white p-3 rounded-lg shadow-sm">
                     <div className="text-center">
                       <Badge className="bg-blue-200 text-blue-900 mb-2 font-medium text-xs">#4</Badge>
-                      <p className="text-xs font-medium mb-1">Pablo G.</p>
-                      <p className="text-xs text-blue-100 mb-2">Pablo Hetking Guimarães</p>
+                      <p className="text-xs font-medium mb-1">{topRanking[3] ? shortName(topRanking[3].tecnico) : '-'}</p>
+                      <p className="text-xs text-blue-100 mb-2">{topRanking[3]?.tecnico ?? '-'}</p>
                       <div className="space-y-1">
                         <div className="text-xs">
                           <span className="text-blue-100">Total:</span>
-                          <span className="font-medium ml-1">1.338</span>
+                          <span className="font-medium ml-1">{topRanking[3] ? fmt(topRanking[3].tickets) : '-'}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-blue-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">1.329</span>
+                          <span className="font-medium ml-1">{topRanking[3] ? fmt(topRanking[3].tickets) : '-'}</span>
                         </div>
                       </div>
                     </div>
