@@ -38,15 +38,18 @@ async def get_ranking_tecnicos_endpoint():
     try:
         # Autenticação é feita aqui, na camada da API
         headers = glpi_client.authenticate(API_URL, APP_TOKEN, USER_TOKEN)
-        
+
         # Chama a lógica de negócio, injetando as dependências
         ranking_data = generate_technician_ranking(api_url=API_URL, session_headers=headers)
-        
+
         # Retorna o top 10 para manter compatibilidade com o frontend
         return ranking_data[:10]
-        
+
     except Exception as e:
         # Log do erro no servidor para depuração
         print(f"❌ Erro no endpoint /ranking-tecnicos: {e}")
         # Retorna uma resposta de erro genérica para o cliente
-        raise HTTPException(status_code=500, detail=f"Ocorreu um erro interno ao gerar o ranking: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ocorreu um erro interno ao gerar o ranking: {e}",
+        ) from e

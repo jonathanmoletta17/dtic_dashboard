@@ -62,8 +62,11 @@ async def get_general_stats_endpoint():
 
         # 2. Calcula os totais gerais somando os valores de cada nível
         total_stats = Counter()
-        for level in level_data.values():
-            total_stats.update(level)
+        for level_name, level_data_dict in level_data.items():
+            # level_data_dict é um dicionário com as contagens por status
+            for status_name, count in level_data_dict.items():
+                if status_name != 'total':  # Ignora o campo 'total' para evitar duplicação
+                    total_stats[status_name] += count
 
         # 3. Formata para o schema de resposta esperado
         general_stats = {

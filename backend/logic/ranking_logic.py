@@ -34,7 +34,7 @@ def get_group_members(headers: Dict[str, str], api_url: str, parent_group_id: in
             'value': '1'
         }
     ]
-    
+
     # Busca os usuários que correspondem aos critérios
     active_users = search_paginated(
         headers,
@@ -44,11 +44,8 @@ def get_group_members(headers: Dict[str, str], api_url: str, parent_group_id: in
         uid_cols=False,
         forcedisplay=['2']  # Queremos apenas o ID do usuário, que é o campo 2
     )
-    
-    # Extrai os IDs dos resultados
-    user_ids = [int(user['2']) for user in active_users if '2' in user]
-    
-    return user_ids
+
+    return [int(user['2']) for user in active_users if '2' in user]
 
 
 def get_user_name(headers: Dict[str, str], api_url: str, user_id: int) -> str:

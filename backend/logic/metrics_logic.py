@@ -37,16 +37,16 @@ def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[
 
         print("🔍 Estratégia Final: Lendo todos os Group_User e filtrando em Python...")
         # Passo A: Buscar TODAS as associações de usuário-grupo
-        # Baseado nos testes: campo '2' = users_id, campo '3' = groups_id
+        # CORREÇÃO FINAL: Usando IDs numéricos que funcionam com a API GLPI
         all_group_user_links = glpi_client.search_paginated(
             session_headers, api_url, "Group_User", 
-            forcedisplay=['2', '3'] # Usando IDs numéricos: 2=users_id, 3=groups_id
+            forcedisplay=['2', '3'] # IDs numéricos: 2=users_id, 3=groups_id
         )
 
         # Passo B: Mapear usuários para os níveis de interesse
         user_to_level_map = {}
         for link in all_group_user_links:
-            # Acessando pelos IDs numéricos: '2' = users_id, '3' = groups_id
+            # Acessando pelos IDs numéricos que funcionam
             user_id = link.get('2')
             group_id = link.get('3')
             if user_id and group_id in group_mapping:
@@ -68,15 +68,15 @@ def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[
         all_assigned_tickets = glpi_client.search_paginated(
             session_headers, api_url, "Ticket",
             criteria=ticket_criteria,
-            forcedisplay=['5', '12'] # Usando IDs numéricos: 5=users_id_tech, 12=status
+            forcedisplay=['users_id_tech', 'status'] # CORRIGIDO: usando nomes de campos
         )
         print(f"   - {len(all_assigned_tickets)} tickets encontrados para esses usuários.")
 
         # Passo D: Processar e agregar os resultados em Python
         for ticket in all_assigned_tickets:
-            # Acessando pelos IDs numéricos: '5' = users_id_tech, '12' = status
-            assigned_user_id = ticket.get('5')
-            status_id = ticket.get('12')
+            # CORREÇÃO: Acessando pelos nomes de campos corretos
+            assigned_user_id = ticket.get('users_id_tech')
+            status_id = ticket.get('status')
 
             if assigned_user_id in user_to_level_map and status_id in status_mapping:
                 level_name = user_to_level_map[assigned_user_id]

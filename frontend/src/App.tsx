@@ -61,7 +61,7 @@ export default function App() {
     <div className="min-h-screen bg-gray-100 text-gray-900 flex flex-col">
       <header className="bg-[#5A9BD4] text-white p-4 flex items-center justify-between shadow-md flex-shrink-0">
         {/* Header content... (simplificado para brevidade) */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <h1 className="text-xl font-semibold">Dashboard GLPI</h1>
         </div>
         <div className="flex items-center gap-4">
@@ -77,7 +77,7 @@ export default function App() {
         ) : error ? (
           <div className="flex flex-col items-center justify-center h-full text-red-600"><ServerCrash className="w-12 h-12 mb-4" /><h2 className="text-xl font-semibold">Falha ao Carregar</h2><p>{error}</p><Button onClick={loadDashboardData} className="mt-6">Tentar Novamente</Button></div>
         ) : (
-          <div className="flex gap-6 h-full">
+          <div className="flex gap-4 h-full">
             <div className="flex-1 flex flex-col gap-4">
               {/* General Stats */}
               <div className="grid grid-cols-4 gap-4">
