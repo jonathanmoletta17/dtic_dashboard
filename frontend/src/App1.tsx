@@ -21,12 +21,18 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
-import { fetchNewTickets, fetchGeneralStats } from './services/api';
-import type { NewTicketItem, GeneralStats } from './types/api.d';
+import { fetchNewTickets, fetchGeneralStats, fetchLevelStats } from './services/api';
+import type { NewTicketItem, GeneralStats, LevelStats } from './types/api.d';
 
 export default function App1() {
   const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
+  const [levelStats, setLevelStats] = useState<LevelStats | null>(null);
+
+  const fmt = (n: number | undefined | null) =>
+    n !== undefined && n !== null
+      ? new Intl.NumberFormat('pt-BR').format(n)
+      : '-';
 
   const loadDashboardData = async () => {
     // Carrega Tickets Novos de forma independente
@@ -43,6 +49,14 @@ export default function App1() {
       setGeneralStats(gs);
     } catch (err) {
       console.error('Falha ao buscar Métricas Gerais (App1):', err);
+    }
+
+    // Carrega Métricas por Nível (N1–N4)
+    try {
+      const ls = await fetchLevelStats();
+      setLevelStats(ls);
+    } catch (err) {
+      console.error('Falha ao buscar Métricas por Nível (App1):', err);
     }
   };
 
@@ -105,7 +119,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Novos</p>
-                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.novos ?? 3)}</p>
+                      <p className="text-2xl font-semibold text-gray-900">{generalStats ? new Intl.NumberFormat('pt-BR').format(generalStats.novos) : '-'}</p>
                     </div>
                     <div className="w-10 h-10 bg-[#5A9BD4]/10 rounded-lg flex items-center justify-center">
                       <TrendingUp className="w-5 h-5 text-[#5A9BD4]" />
@@ -119,7 +133,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Em Progresso</p>
-                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.em_progresso ?? 45)}</p>
+                      <p className="text-2xl font-semibold text-gray-900">{generalStats ? new Intl.NumberFormat('pt-BR').format(generalStats.em_progresso) : '-'}</p>
                     </div>
                     <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
                       <AlertTriangle className="w-5 h-5 text-orange-600" />
@@ -133,7 +147,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Pendentes</p>
-                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.pendentes ?? 26)}</p>
+                      <p className="text-2xl font-semibold text-gray-900">{generalStats ? new Intl.NumberFormat('pt-BR').format(generalStats.pendentes) : '-'}</p>
                     </div>
                     <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
                       <Clock className="w-5 h-5 text-amber-600" />
@@ -147,7 +161,7 @@ export default function App1() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-600 mb-1">Resolvidos</p>
-                      <p className="text-2xl font-semibold text-gray-900">{new Intl.NumberFormat('pt-BR').format(generalStats?.resolvidos ?? 10200)}</p>
+                      <p className="text-2xl font-semibold text-gray-900">{generalStats ? new Intl.NumberFormat('pt-BR').format(generalStats.resolvidos) : '-'}</p>
                     </div>
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
                       <CheckCircle className="w-5 h-5 text-green-600" />
@@ -167,7 +181,7 @@ export default function App1() {
                       <Activity className="w-4 h-4" />
                       Nível N1
                     </span>
-                    <span className="text-xl font-semibold text-gray-900">1.495</span>
+                    <span className="text-xl font-semibold text-gray-900">{levelStats ? fmt(levelStats.N1.total) : '-'}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -177,28 +191,28 @@ export default function App1() {
                         <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
                         Novos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.novos) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                         Em Progr.
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">8</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.em_progresso) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
                         Pendentes
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">3</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.pendentes) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         Resolvidos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1.483</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.resolvidos) : '-'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -212,7 +226,7 @@ export default function App1() {
                       <Activity className="w-4 h-4" />
                       Nível N2
                     </span>
-                    <span className="text-xl font-semibold text-gray-900">1.266</span>
+                    <span className="text-xl font-semibold text-gray-900">{levelStats ? fmt(levelStats.N2.total) : '-'}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -222,28 +236,28 @@ export default function App1() {
                         <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
                         Novos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">0</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.novos) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                         Em Progr.
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">11</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.em_progresso) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
                         Pendentes
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">11</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.pendentes) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         Resolvidos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1.244</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.resolvidos) : '-'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -257,7 +271,7 @@ export default function App1() {
                       <Activity className="w-4 h-4" />
                       Nível N3
                     </span>
-                    <span className="text-xl font-semibold text-gray-900">5.262</span>
+                    <span className="text-xl font-semibold text-gray-900">{levelStats ? fmt(levelStats.N3.total) : '-'}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -267,28 +281,28 @@ export default function App1() {
                         <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
                         Novos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.novos) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                         Em Progr.
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">21</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.em_progresso) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
                         Pendentes
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">9</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.pendentes) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         Resolvidos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">5.231</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.resolvidos) : '-'}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -302,7 +316,7 @@ export default function App1() {
                       <Activity className="w-4 h-4" />
                       Nível N4
                     </span>
-                    <span className="text-xl font-semibold text-gray-900">42</span>
+                    <span className="text-xl font-semibold text-gray-900">{levelStats ? fmt(levelStats.N4.total) : '-'}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -312,28 +326,28 @@ export default function App1() {
                         <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
                         Novos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">0</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.novos) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                         Em Progr.
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.em_progresso) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
                         Pendentes
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">1</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.pendentes) : '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-2 text-xs text-gray-600">
                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         Resolvidos
                       </span>
-                      <span className="font-medium text-gray-900 text-sm">40</span>
+                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.resolvidos) : '-'}</span>
                     </div>
                   </div>
                 </CardContent>
