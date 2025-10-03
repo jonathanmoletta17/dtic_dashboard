@@ -5,7 +5,7 @@ Módulo de lógica de negócios para funcionalidades relacionadas a tickets.
 import requests
 from typing import Dict, List, Any
 
-import glpi_client
+import backend.glpi_client as glpi_client
 
 def get_new_tickets(api_url: str, session_headers: Dict[str, str]) -> List[Dict[str, Any]]:
     """

@@ -1,13 +1,13 @@
 """
 Módulo de lógica de negócios para geração de métricas de estatísticas do GLPI.
+Implementação direta usando filtros de busca na API GLPI.
 """
 
-from typing import Dict, Any
-from collections import Counter
+from typing import Dict, Any, Tuple
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.adapters import HTTPAdapter
 
-# Importa o cliente GLPI para ser usado pelas funções de lógica
-import glpi_client
 
 def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[str, Any]:
     """
@@ -15,51 +15,66 @@ def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[
     - Hierarquia (campo 8) com searchtype=contains para "N1".."N4"
     - Status (campo 12) com searchtype=equals para IDs 1..6
 
-    Agregação conforme dashboard:
-      - novos: 1
-      - em_progresso: 2 + 3
-      - pendentes: 4
-      - resolvidos: 5 + 6
+    Retorna um dicionário com as chaves N1..N4 nas agregações:
+    { "N1": {"novos": int, "em_progresso": int, "pendentes": int, "resolvidos": int, "total": int }, ... }
     """
     try:
-        def count_level_status(level_value: str, status_id: int) -> int:
+        def fetch_count(session: requests.Session, level_value: str, status_id: int) -> Tuple[str, int, int]:
             url = f"{api_url}/search/Ticket"
             params = {
                 "uid_cols": "1",
-                # Filtro por Hierarquia (campo 8)
                 "criteria[0][field]": "8",
                 "criteria[0][searchtype]": "contains",
                 "criteria[0][value]": level_value,
-                # Filtro por Status (campo 12)
+                "criteria[1][link]": "AND",
                 "criteria[1][field]": "12",
                 "criteria[1][searchtype]": "equals",
                 "criteria[1][value]": str(status_id),
-                # Apenas contagem
                 "range": "0-0",
             }
-            resp = requests.get(url, headers=session_headers, params=params)
-            resp.raise_for_status()
-            data = resp.json()
             try:
-                return int(data.get("totalcount", 0))
-            except (TypeError, ValueError):
-                return 0
+                resp = session.get(url, headers=session_headers, params=params, timeout=(2, 4))
+                resp.raise_for_status()
+                data = resp.json()
+                try:
+                    count = int(data.get("totalcount", 0))
+                except (TypeError, ValueError):
+                    count = 0
+                return level_value, status_id, count
+            except requests.exceptions.RequestException:
+                return level_value, status_id, 0
 
         levels = ["N1", "N2", "N3", "N4"]
+        statuses = [1, 2, 3, 4, 5, 6]
         level_stats = {lvl: {"novos": 0, "em_progresso": 0, "pendentes": 0, "resolvidos": 0, "total": 0} for lvl in levels}
 
-        print("🔍 Estratégia por nível: filtrando por campo 8 (Hierarquia) + campo 12 (Status)...")
-        for lvl in levels:
-            novos = count_level_status(lvl, 1)
-            em_prog = count_level_status(lvl, 2) + count_level_status(lvl, 3)
-            pend = count_level_status(lvl, 4)
-            resol = count_level_status(lvl, 5) + count_level_status(lvl, 6)
+        session = requests.Session()
+        adapter = HTTPAdapter(pool_connections=20, pool_maxsize=20)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
 
-            level_stats[lvl]["novos"] = novos
-            level_stats[lvl]["em_progresso"] = em_prog
-            level_stats[lvl]["pendentes"] = pend
-            level_stats[lvl]["resolvidos"] = resol
-            level_stats[lvl]["total"] = novos + em_prog + pend + resol
+        with ThreadPoolExecutor(max_workers=12) as executor:
+            futures = []
+            for lvl in levels:
+                for st in statuses:
+                    futures.append(executor.submit(fetch_count, session, lvl, st))
+            for fut in as_completed(futures):
+                lvl, st, cnt = fut.result()
+                if st == 1:
+                    level_stats[lvl]["novos"] += cnt
+                elif st in (2, 3):
+                    level_stats[lvl]["em_progresso"] += cnt
+                elif st == 4:
+                    level_stats[lvl]["pendentes"] += cnt
+                elif st in (5, 6):
+                    level_stats[lvl]["resolvidos"] += cnt
+                # Atualiza total incrementalmente
+                level_stats[lvl]["total"] = (
+                    level_stats[lvl]["novos"] +
+                    level_stats[lvl]["em_progresso"] +
+                    level_stats[lvl]["pendentes"] +
+                    level_stats[lvl]["resolvidos"]
+                )
 
         return level_stats
 
@@ -87,7 +102,7 @@ def generate_general_stats(api_url: str, session_headers: Dict[str, str]) -> Dic
                 "criteria[0][value]": str(status_id),
                 "range": "0-0",
             }
-            resp = requests.get(url, headers=session_headers, params=params)
+            resp = requests.get(url, headers=session_headers, params=params, timeout=(2, 4))
             resp.raise_for_status()
             data = resp.json()
             try:

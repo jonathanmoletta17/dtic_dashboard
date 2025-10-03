@@ -2,9 +2,9 @@ import os
 from typing import List
 from fastapi import APIRouter, HTTPException
 
-import glpi_client
-from logic.tickets_logic import get_new_tickets
-from schemas import NewTicketItem
+import backend.glpi_client as glpi_client
+from backend.logic.tickets_logic import get_new_tickets
+from backend.schemas import NewTicketItem
 
 # Cria um novo roteador
 router = APIRouter(

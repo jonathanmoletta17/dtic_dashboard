@@ -83,7 +83,6 @@ export default function App1() {
     return `${first} ${lastInitial}.`;
   };
 
-  const topRanking = (technicianRanking ?? []).slice(0, 4);
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -129,10 +128,10 @@ export default function App1() {
       </header>
 
       {/* Content */}
-      <div className="p-6 bg-gray-100 h-[calc(100vh-80px)] overflow-hidden">
+      <div className="p-6 bg-gray-100 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden">
         <div className="flex gap-4 h-full">
           {/* Left Column - Dashboard Stats */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 min-w-0 flex flex-col">
             {/* Stats Cards */}
             <div className="grid grid-cols-4 gap-4 mb-4">
               <Card className="bg-white border-l-4 border-l-[#5A9BD4] shadow-sm hover:shadow-md transition-shadow">
@@ -376,7 +375,7 @@ export default function App1() {
             </div>
 
             {/* Ranking de Técnicos */}
-            <Card className="bg-white shadow-sm border-0 flex-1">
+            <Card className="bg-white shadow-sm border-0 flex-1 min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-[#5A9BD4] text-lg">
                   <Award className="w-5 h-5" />
@@ -384,85 +383,77 @@ export default function App1() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-gradient-to-br from-[#5A9BD4] to-[#4A8BC2] text-white p-3 rounded-lg shadow-sm">
-                    <div className="text-center">
-                      <Badge className="bg-yellow-500 text-yellow-900 mb-2 font-medium text-xs">#1</Badge>
-                      <p className="text-xs font-medium mb-1">{topRanking[0] ? shortName(topRanking[0].tecnico) : '-'}</p>
-                      <p className="text-xs text-blue-100 mb-2">{topRanking[0]?.tecnico ?? '-'}</p>
-                      <div className="space-y-1">
-                        <div className="text-xs">
-                          <span className="text-blue-100">Total:</span>
-                          <span className="font-medium ml-1">{topRanking[0] ? fmt(topRanking[0].tickets) : '-'}</span>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-blue-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">{topRanking[0] ? fmt(topRanking[0].tickets) : '-'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                {/* Estado vazio/falha: evita estourar layout quando não há dados */}
+                {!(technicianRanking && technicianRanking.length > 0) ? (
+                  <div className="w-full text-center text-xs text-gray-600 py-2">Ranking indisponível no momento.</div>
+                ) : (
+                <div 
+                  className="w-full overflow-x-auto [&::-webkit-scrollbar]:h-[6px] [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#5A9BD4] [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb:hover]:bg-[#4A8BC2]"
+                  style={{ overflowX: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#5A9BD4 #f1f5f9', overscrollBehaviorX: 'contain' }}
+                  onWheel={(e) => {
+                    const target = e.currentTarget;
+                    const canScrollHorizontally = target.scrollWidth > target.clientWidth;
+                    if (!canScrollHorizontally) return;
+                    // Converte rolagem vertical do mouse em rolagem horizontal dentro do ranking
+                    if (Math.abs(e.deltaY) >= Math.abs(e.deltaX)) {
+                      e.preventDefault();
+                      target.scrollLeft += e.deltaY;
+                    }
+                  }}
+                >
+                  <div className="inline-flex w-max gap-3">
+                    {technicianRanking.map((tech, idx) => {
+                      const isFirst = idx === 0;
+                      const isSecond = idx === 1;
+                      const isThird = idx === 2;
+                      const isTop3 = isFirst || isSecond || isThird;
+                      const baseClasses = isTop3
+                        ? 'flex-shrink-0 w-56 bg-gradient-to-br text-white p-3 rounded-lg shadow-sm'
+                        : 'flex-shrink-0 w-56 bg-gray-50 border border-gray-200 text-gray-900 p-3 rounded-lg shadow-sm';
+                      const gradientClasses = isFirst
+                        ? 'from-[#5A9BD4] to-[#4A8BC2]'
+                        : isSecond
+                        ? 'from-slate-600 to-slate-700'
+                        : isThird
+                        ? 'from-orange-600 to-orange-700'
+                        : '';
+                      const badgeClasses = isFirst
+                        ? 'bg-yellow-500 text-yellow-900'
+                        : isSecond
+                        ? 'bg-gray-300 text-gray-800'
+                        : isThird
+                        ? 'bg-orange-200 text-orange-900'
+                        : '';
 
-                  <div className="bg-gradient-to-br from-slate-600 to-slate-700 text-white p-3 rounded-lg shadow-sm">
-                    <div className="text-center">
-                      <Badge className="bg-gray-300 text-gray-800 mb-2 font-medium text-xs">#2</Badge>
-                      <p className="text-xs font-medium mb-1">{topRanking[1] ? shortName(topRanking[1].tecnico) : '-'}</p>
-                      <p className="text-xs text-slate-200 mb-2">{topRanking[1]?.tecnico ?? '-'}</p>
-                      <div className="space-y-1">
-                        <div className="text-xs">
-                          <span className="text-slate-200">Total:</span>
-                          <span className="font-medium ml-1">{topRanking[1] ? fmt(topRanking[1].tickets) : '-'}</span>
+                      return (
+                        <div key={`${tech.tecnico}-${idx}`} className={`${baseClasses} ${gradientClasses}`}>
+                          <div className="text-center">
+                            <Badge className={`${badgeClasses} mb-2 font-medium text-xs`} variant={isTop3 ? undefined : 'outline'}>
+                              #{idx + 1}
+                            </Badge>
+                            <p className={`text-xs font-medium mb-1 ${isTop3 ? '' : 'text-gray-900'}`}>{shortName(tech.tecnico)}</p>
+                            <p className={`text-xs mb-2 ${isFirst ? 'text-blue-100' : isSecond ? 'text-slate-200' : isThird ? 'text-orange-100' : 'text-gray-600'}`}>{tech.tecnico}</p>
+                            <div className="space-y-1">
+                              <div className="text-xs">
+                                <span className={`${isTop3 ? (isFirst ? 'text-blue-100' : isSecond ? 'text-slate-200' : 'text-orange-100') : 'text-gray-600'}`}>Tickets:</span>
+                                <span className="font-medium ml-1">{fmt(tech.tickets)}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-xs">
-                          <span className="text-slate-200">Resolvidos:</span>
-                          <span className="font-medium ml-1">{topRanking[1] ? fmt(topRanking[1].tickets) : '-'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-orange-600 to-orange-700 text-white p-3 rounded-lg shadow-sm">
-                    <div className="text-center">
-                      <Badge className="bg-orange-200 text-orange-900 mb-2 font-medium text-xs">#3</Badge>
-                      <p className="text-xs font-medium mb-1">{topRanking[2] ? shortName(topRanking[2].tecnico) : '-'}</p>
-                      <p className="text-xs text-orange-100 mb-2">{topRanking[2]?.tecnico ?? '-'}</p>
-                      <div className="space-y-1">
-                        <div className="text-xs">
-                          <span className="text-orange-100">Total:</span>
-                          <span className="font-medium ml-1">{topRanking[2] ? fmt(topRanking[2].tickets) : '-'}</span>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-orange-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">{topRanking[2] ? fmt(topRanking[2].tickets) : '-'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-[#5A9BD4] to-[#4A8BC2] text-white p-3 rounded-lg shadow-sm">
-                    <div className="text-center">
-                      <Badge className="bg-blue-200 text-blue-900 mb-2 font-medium text-xs">#4</Badge>
-                      <p className="text-xs font-medium mb-1">{topRanking[3] ? shortName(topRanking[3].tecnico) : '-'}</p>
-                      <p className="text-xs text-blue-100 mb-2">{topRanking[3]?.tecnico ?? '-'}</p>
-                      <div className="space-y-1">
-                        <div className="text-xs">
-                          <span className="text-blue-100">Total:</span>
-                          <span className="font-medium ml-1">{topRanking[3] ? fmt(topRanking[3].tickets) : '-'}</span>
-                        </div>
-                        <div className="text-xs">
-                          <span className="text-blue-100">Resolvidos:</span>
-                          <span className="font-medium ml-1">{topRanking[3] ? fmt(topRanking[3].tickets) : '-'}</span>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
 
+          
+
           {/* Right Column - Tickets */}
-          <div className="w-110">
+          <div className="w-[28rem] flex-shrink-0">
             <Card className="bg-white shadow-sm border-0 h-full flex flex-col">
               <CardHeader className="pb-3 flex-shrink-0">
                 <div className="flex items-center justify-between">

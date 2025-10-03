@@ -2,10 +2,10 @@ import os
 from fastapi import APIRouter, HTTPException
 from collections import Counter
 
-import glpi_client
+import backend.glpi_client as glpi_client
 # Apenas a função de stats por nível é necessária agora
-from logic.metrics_logic import generate_level_stats, generate_general_stats
-from schemas import GeneralStats, LevelStats
+from backend.logic.metrics_logic import generate_level_stats, generate_general_stats
+from backend.schemas import GeneralStats, LevelStats
 
 # Cria um novo roteador com um prefixo e tags para a documentação
 router = APIRouter(

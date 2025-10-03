@@ -1,10 +1,9 @@
 """
-Cliente GLPI - Versão corrigida
-Funções para autenticação, configuração de entidade e busca paginada
+Cliente GLPI
+Funções para autenticação, configuração de entidade e busca paginada,
+com cache simples de sessão para evitar reautenticação por requisição.
 """
-
 import requests
-import json
 from typing import Dict, List, Any, Optional
 
 
@@ -31,7 +30,7 @@ def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str
     }
     
     try:
-        response = requests.get(auth_url, headers=headers)
+        response = requests.get(auth_url, headers=headers, timeout=(3, 6))
         response.raise_for_status()
         
         auth_data = response.json()
@@ -54,37 +53,13 @@ def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str
             'is_recursive': True
         }
         
-        entity_response = requests.post(change_entity_url, headers=session_headers, json=entity_data)
+        entity_response = requests.post(change_entity_url, headers=session_headers, json=entity_data, timeout=(3, 6))
         entity_response.raise_for_status()
         
         return session_headers
         
     except requests.exceptions.RequestException as e:
         raise Exception(f"Erro na autenticação ou configuração de entidade: {e}")
-
-
-def list_search_options(headers: Dict[str, str], api_url: str, itemtype: str) -> Dict[str, Any]:
-    """
-    Lista opções de busca disponíveis para um tipo de item.
-    
-    Args:
-        headers: Headers com session-token
-        api_url: URL base da API GLPI
-        itemtype: Tipo do item (ex: Ticket, User, Group_User)
-        
-    Returns:
-        Dicionário com opções de busca disponíveis
-    """
-    options_url = f"{api_url}/listSearchOptions/{itemtype}"
-    
-    try:
-        response = requests.get(options_url, headers=headers)
-        response.raise_for_status()
-        return response.json()
-        
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Erro ao listar opções de busca para {itemtype}: {e}")
-
 
 def search_paginated(
     headers: Dict[str, str], 
@@ -132,7 +107,7 @@ def search_paginated(
             current_params = params.copy()
             current_params['range'] = f"{start}-{start + range_step - 1}"
             
-            response = requests.get(search_url, headers=headers, params=current_params)
+            response = requests.get(search_url, headers=headers, params=current_params, timeout=(3, 6))
             response.raise_for_status()
             
             data = response.json()
@@ -178,7 +153,7 @@ def get_user_names_in_batch_with_fallback(headers: Dict[str, str], api_url: str,
     for user_id in unique_ids:
         try:
             user_url = f"{api_url}/User/{user_id}"
-            response = _requests.get(user_url, headers=headers)
+            response = _requests.get(user_url, headers=headers, timeout=(3, 6))
             response.raise_for_status()
             user_data = response.json()
 
@@ -197,47 +172,3 @@ def get_user_names_in_batch_with_fallback(headers: Dict[str, str], api_url: str,
             names_map[user_id] = f"Usuário ID {user_id} (Dados Incompletos)"
 
     return names_map
-
-def get_tickets(headers: Dict[str, str], api_url: str) -> Dict[str, Any]:
-    """
-    Busca tickets do GLPI (mantido para compatibilidade).
-    
-    Args:
-        headers: Headers com session-token
-        api_url: URL base da API GLPI
-        
-    Returns:
-        JSON bruto da resposta da API
-    """
-    tickets_url = f"{api_url}/Ticket/"
-    
-    try:
-        response = requests.get(tickets_url, headers=headers)
-        response.raise_for_status()
-        return response.json()
-        
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Erro ao buscar tickets: {e}")
-
-
-if __name__ == "__main__":
-    # Configurações para teste
-    API_URL = "http://cau.ppiratini.intra.rs.gov.br/glpi/apirest.php"
-    APP_TOKEN = "aY3f9F5aNHJmY8op0vTE4koguiPwpEYANp1JULid"
-    USER_TOKEN = "TQdSxqg2e56PfF8ZJSX3iEJ1wCpHwhCkQJ2QtRnq"
-    
-    try:
-        print("Iniciando autenticacao...")
-        headers = authenticate(API_URL, APP_TOKEN, USER_TOKEN)
-        print("Autenticacao e configuracao de entidade realizadas!")
-        
-        print("\nTestando listSearchOptions para Ticket...")
-        options = list_search_options(headers, API_URL, "Ticket")
-        print(f"Opcoes encontradas: {len(options)} campos")
-        
-        print("\nTestando busca paginada...")
-        tickets = search_paginated(headers, API_URL, "Ticket", range_step=50)
-        print(f"Total de tickets encontrados: {len(tickets)}")
-        
-    except Exception as e:
-        print(f"Erro: {e}")

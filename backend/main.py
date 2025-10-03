@@ -12,7 +12,7 @@ dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 # Os roteadores são importados DEPOIS que as variáveis de ambiente foram carregadas
-from api import ranking_router, stats_router, tickets_router
+from backend.api import ranking_router, stats_router, tickets_router
 
 # Cria a instância principal da aplicação FastAPI
 app = FastAPI(
