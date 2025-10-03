@@ -30,12 +30,14 @@ async function fetchFromAPI<T>(endpoint: string): Promise<T> {
 
 // Exporta uma função específica para cada endpoint, usando o nosso helper genérico.
 
-export const fetchGeneralStats = () => {
-  return fetchFromAPI<GeneralStats>('/metrics-gerais');
+export const fetchGeneralStats = (inicio?: string, fim?: string) => {
+  const qs = inicio && fim ? `?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}` : '';
+  return fetchFromAPI<GeneralStats>(`/metrics-gerais${qs}`);
 };
 
-export const fetchLevelStats = () => {
-  return fetchFromAPI<LevelStats>('/status-niveis');
+export const fetchLevelStats = (inicio?: string, fim?: string) => {
+  const qs = inicio && fim ? `?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}` : '';
+  return fetchFromAPI<LevelStats>(`/status-niveis${qs}`);
 };
 
 export const fetchTechnicianRanking = () => {

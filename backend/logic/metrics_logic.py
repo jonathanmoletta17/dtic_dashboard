@@ -9,7 +9,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from requests.adapters import HTTPAdapter
 
 
-def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[str, Any]:
+def generate_level_stats(
+    api_url: str,
+    session_headers: Dict[str, str],
+    inicio: str | None = None,
+    fim: str | None = None,
+    campo_data: int = 15,
+) -> Dict[str, Any]:
     """
     Conta tickets por nível usando filtros diretos na API GLPI:
     - Hierarquia (campo 8) com searchtype=contains para "N1".."N4"
@@ -21,17 +27,38 @@ def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[
     try:
         def fetch_count(session: requests.Session, level_value: str, status_id: int) -> Tuple[str, int, int]:
             url = f"{api_url}/search/Ticket"
-            params = {
+            params: Dict[str, Any] = {
                 "uid_cols": "1",
-                "criteria[0][field]": "8",
-                "criteria[0][searchtype]": "contains",
-                "criteria[0][value]": level_value,
-                "criteria[1][link]": "AND",
-                "criteria[1][field]": "12",
-                "criteria[1][searchtype]": "equals",
-                "criteria[1][value]": str(status_id),
                 "range": "0-0",
             }
+
+            # criteria 0: nível (campo 8)
+            index = 0
+            params[f"criteria[{index}][field]"] = "8"
+            params[f"criteria[{index}][searchtype]"] = "contains"
+            params[f"criteria[{index}][value]"] = level_value
+            index += 1
+
+            # critérios de data (opcionais)
+            if inicio and fim:
+                fim_value = fim if len(fim) > 10 else f"{fim} 23:59:59"
+                params[f"criteria[{index}][link]"] = "AND"
+                params[f"criteria[{index}][field]"] = str(campo_data)
+                params[f"criteria[{index}][searchtype]"] = "morethan"
+                params[f"criteria[{index}][value]"] = inicio
+                index += 1
+
+                params[f"criteria[{index}][link]"] = "AND"
+                params[f"criteria[{index}][field]"] = str(campo_data)
+                params[f"criteria[{index}][searchtype]"] = "lessthan"
+                params[f"criteria[{index}][value]"] = fim_value
+                index += 1
+
+            # critério de status (campo 12)
+            params[f"criteria[{index}][link]"] = "AND"
+            params[f"criteria[{index}][field]"] = "12"
+            params[f"criteria[{index}][searchtype]"] = "equals"
+            params[f"criteria[{index}][value]"] = str(status_id)
             try:
                 resp = session.get(url, headers=session_headers, params=params, timeout=(2, 4))
                 resp.raise_for_status()
@@ -83,7 +110,13 @@ def generate_level_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[
         raise e
 
 
-def generate_general_stats(api_url: str, session_headers: Dict[str, str]) -> Dict[str, int]:
+def generate_general_stats(
+    api_url: str,
+    session_headers: Dict[str, str],
+    inicio: str | None = None,
+    fim: str | None = None,
+    campo_data: int = 15,
+) -> Dict[str, int]:
     """
     Conta tickets diretamente pelo Status (campo 12) usando /search/Ticket
     e retorna agregados conforme o dashboard:
@@ -91,17 +124,35 @@ def generate_general_stats(api_url: str, session_headers: Dict[str, str]) -> Dic
       - em_progresso: 2 + 3
       - pendentes: 4
       - resolvidos: 5 + 6
+    Se "inicio" e "fim" forem fornecidos, aplica filtro de intervalo de datas
+    usando o campo especificado em "campo_data" (padrão 15 = data de criação).
     """
     try:
         def count_status(status_id: int) -> int:
             url = f"{api_url}/search/Ticket"
-            params = {
+            params: Dict[str, Any] = {
                 "uid_cols": "1",
-                "criteria[0][field]": "12",
-                "criteria[0][searchtype]": "equals",
-                "criteria[0][value]": str(status_id),
                 "range": "0-0",
             }
+
+            index = 0
+            if inicio and fim:
+                fim_value = fim if len(fim) > 10 else f"{fim} 23:59:59"
+                params[f"criteria[{index}][field]"] = str(campo_data)
+                params[f"criteria[{index}][searchtype]"] = "morethan"
+                params[f"criteria[{index}][value]"] = inicio
+                index += 1
+                params[f"criteria[{index}][link]"] = "AND"
+                params[f"criteria[{index}][field]"] = str(campo_data)
+                params[f"criteria[{index}][searchtype]"] = "lessthan"
+                params[f"criteria[{index}][value]"] = fim_value
+                index += 1
+
+            if index > 0:
+                params[f"criteria[{index}][link]"] = "AND"
+            params[f"criteria[{index}][field]"] = "12"
+            params[f"criteria[{index}][searchtype]"] = "equals"
+            params[f"criteria[{index}][value]"] = str(status_id)
             resp = requests.get(url, headers=session_headers, params=params, timeout=(2, 4))
             resp.raise_for_status()
             data = resp.json()

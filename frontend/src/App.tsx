@@ -23,12 +23,22 @@ import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchNewTickets, fetchGeneralStats, fetchLevelStats, fetchTechnicianRanking } from './services/api';
 import type { NewTicketItem, GeneralStats, LevelStats, TechnicianRankingItem } from './types/api.d';
+import { DateRangePicker } from './components/DateRangePicker';
 
 export default function App1() {
   const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
   const [levelStats, setLevelStats] = useState<LevelStats | null>(null);
   const [technicianRanking, setTechnicianRanking] = useState<TechnicianRankingItem[] | null>(null);
+  const [time, setTime] = useState<Date>(new Date());
+  const [dateRange, setDateRange] = useState<{ inicio: string; fim: string }>(() => {
+    const now = new Date();
+    const end = new Date(now);
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    const toYmd = (d: Date) => d.toISOString().slice(0, 10);
+    return { inicio: toYmd(start), fim: toYmd(end) };
+  });
 
   const fmt = (n: number | undefined | null) =>
     n !== undefined && n !== null
@@ -46,7 +56,7 @@ export default function App1() {
 
     // Carrega Métricas Gerais (não impacta Tickets Novos em caso de erro)
     try {
-      const gs = await fetchGeneralStats();
+      const gs = await fetchGeneralStats(dateRange.inicio, dateRange.fim);
       setGeneralStats(gs);
     } catch (err) {
       console.error('Falha ao buscar Métricas Gerais (App1):', err);
@@ -54,7 +64,7 @@ export default function App1() {
 
     // Carrega Métricas por Nível (N1–N4)
     try {
-      const ls = await fetchLevelStats();
+      const ls = await fetchLevelStats(dateRange.inicio, dateRange.fim);
       setLevelStats(ls);
     } catch (err) {
       console.error('Falha ao buscar Métricas por Nível (App1):', err);
@@ -73,6 +83,12 @@ export default function App1() {
     loadDashboardData();
   }, []);
 
+  // Atualiza o relógio em tempo real
+  useEffect(() => {
+    const id = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // Helper para abreviar nome do técnico (Primeiro nome + inicial do último)
   const shortName = (name: string) => {
     const parts = (name || '').trim().split(/\s+/);
@@ -86,42 +102,37 @@ export default function App1() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-[#5A9BD4] text-white p-4 flex items-center justify-between shadow-md">
+      <header className="bg-[#5A9BD4] text-white p-3 px-6 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
           <div>
-            <h1 className="text-xl font-semibold">Dashboard GLPI</h1>
+            <h1 className="text-xl font-semibold">DTIC - Métricas</h1>
             <p className="text-sm text-blue-100">Departamento de Tecnologia do Estado</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-white/20 rounded-lg px-4 py-2 w-80">
+          <div className="flex items-center gap-2 bg-white/20 rounded-lg px-4 w-80">
             <Search className="w-4 h-4 text-white/80" />
             <Input 
               placeholder="Buscar chamados... (Ctrl+K)" 
               className="bg-transparent border-none text-white placeholder:text-white/70 flex-1"
             />
           </div>
+          <DateRangePicker
+            value={dateRange}
+            onChange={setDateRange}
+            onApply={loadDashboardData}
+            className="w-auto"
+          />
           <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
             <RotateCcw className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600 relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </Button>
-          <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
-            <Settings className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/20">
+          <div className="flex items-center gap-3 pl-4 border-l border-white/20">
             <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="text-sm">
-              <p className="text-white font-medium">Admin</p>
-              <p className="text-blue-100 text-xs">17:38:57</p>
+              <p className="text-blue-100 text-xs">{time.toLocaleTimeString('pt-BR')}</p>
             </div>
           </div>
         </div>
@@ -453,7 +464,7 @@ export default function App1() {
           
 
           {/* Right Column - Tickets */}
-          <div className="w-[28rem] flex-shrink-0">
+          <div className="w-105 flex-shrink-0">
             <Card className="bg-white shadow-sm border-0 h-full flex flex-col">
               <CardHeader className="pb-3 flex-shrink-0">
                 <div className="flex items-center justify-between">

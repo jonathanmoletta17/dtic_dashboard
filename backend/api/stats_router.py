@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from collections import Counter
 
 import backend.glpi_client as glpi_client
@@ -18,7 +18,11 @@ router = APIRouter(
     response_model=LevelStats,
     summary="Obtém contagem de tickets por nível de atendimento",
 )
-async def get_level_stats_endpoint():
+async def get_level_stats_endpoint(
+    inicio: str | None = Query(default=None, description="Data inicial no formato YYYY-MM-DD"),
+    fim: str | None = Query(default=None, description="Data final no formato YYYY-MM-DD"),
+    campo_data: int | None = Query(default=15, description="Campo de data (15=criação, 19=modificação)"),
+):
     """
     Endpoint para obter uma contagem de tickets para cada nível de suporte (N1, N2, N3, N4).
     """
@@ -31,7 +35,13 @@ async def get_level_stats_endpoint():
 
     try:
         headers = glpi_client.authenticate(API_URL, APP_TOKEN, USER_TOKEN)
-        level_data = generate_level_stats(api_url=API_URL, session_headers=headers)
+        level_data = generate_level_stats(
+            api_url=API_URL,
+            session_headers=headers,
+            inicio=inicio,
+            fim=fim,
+            campo_data=campo_data or 15,
+        )
         return level_data
     except Exception as e:
         print(f"❌ Erro no endpoint /status-niveis: {e}")
@@ -43,7 +53,11 @@ async def get_level_stats_endpoint():
     response_model=GeneralStats,
     summary="Obtém estatísticas gerais de tickets",
 )
-async def get_general_stats_endpoint():
+async def get_general_stats_endpoint(
+    inicio: str | None = Query(default=None, description="Data inicial no formato YYYY-MM-DD"),
+    fim: str | None = Query(default=None, description="Data final no formato YYYY-MM-DD"),
+    campo_data: int | None = Query(default=15, description="Campo de data (15=criação, 19=modificação)"),
+):
     """
     Endpoint para obter uma contagem geral de tickets por status.
     Os dados são derivados a partir dos dados detalhados por nível para garantir consistência.
@@ -57,8 +71,14 @@ async def get_general_stats_endpoint():
 
     try:
         headers = glpi_client.authenticate(API_URL, APP_TOKEN, USER_TOKEN)
-        # Contagem direta no GLPI por Status (campo 12), alinhada ao script de validação
-        general_stats = generate_general_stats(api_url=API_URL, session_headers=headers)
+        # Contagem direta no GLPI por Status (campo 12), com filtro opcional por intervalo de datas
+        general_stats = generate_general_stats(
+            api_url=API_URL,
+            session_headers=headers,
+            inicio=inicio,
+            fim=fim,
+            campo_data=campo_data or 15,
+        )
         return general_stats
 
     except Exception as e:
