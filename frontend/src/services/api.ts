@@ -5,8 +5,10 @@ import type {
   NewTicketItem,
 } from '../types/api.d';
 
-// O prefixo da nossa API. O proxy do Vite irá redirecionar as chamadas.
-const API_BASE_URL = '/api/v1';
+// O prefixo da nossa API.
+// Em desenvolvimento, use proxy do Vite com '/api/v1'.
+// Em produção/preview, configure VITE_API_BASE_URL (ex.: 'http://127.0.0.1:8000/api/v1').
+const API_BASE_URL = (import.meta as any)?.env?.VITE_API_BASE_URL || '/api/v1';
 
 /**
  * Uma função genérica e reutilizável para buscar dados da nossa API.
@@ -40,8 +42,9 @@ export const fetchLevelStats = (inicio?: string, fim?: string) => {
   return fetchFromAPI<LevelStats>(`/status-niveis${qs}`);
 };
 
-export const fetchTechnicianRanking = () => {
-  return fetchFromAPI<TechnicianRankingItem[]>('/ranking-tecnicos');
+export const fetchTechnicianRanking = (inicio?: string, fim?: string) => {
+  const qs = inicio && fim ? `?inicio=${encodeURIComponent(inicio)}&fim=${encodeURIComponent(fim)}` : '';
+  return fetchFromAPI<TechnicianRankingItem[]>(`/ranking-tecnicos${qs}`);
 };
 
 export const fetchNewTickets = () => {
