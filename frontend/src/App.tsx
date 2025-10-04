@@ -1,6 +1,7 @@
 import { 
   useState, 
-  useEffect 
+  useEffect,
+  useRef
 } from 'react';
 import {
   RotateCcw,
@@ -27,20 +28,50 @@ export default function App1() {
   const [technicianRanking, setTechnicianRanking] = useState<TechnicianRankingItem[] | null>(null);
   const [time, setTime] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState<{ inicio: string; fim: string }>(() => {
+    const toYmd = (d: Date) => d.toISOString().slice(0, 10);
+    // 1) Tenta ler do URL (persistência leve, resistente a remounts)
+    const url = new URL(window.location.href);
+    const qsInicio = url.searchParams.get('inicio');
+    const qsFim = url.searchParams.get('fim');
+    const hasValidQs = Boolean(qsInicio && qsFim && qsInicio <= qsFim);
+    if (hasValidQs) {
+      return { inicio: qsInicio!, fim: qsFim! };
+    }
+    // 2) Caso não haja parâmetros válidos, usa últimos 30 dias relativos como padrão
     const now = new Date();
     const end = new Date(now);
     const start = new Date(now);
     start.setDate(start.getDate() - 30);
-    const toYmd = (d: Date) => d.toISOString().slice(0, 10);
     return { inicio: toYmd(start), fim: toYmd(end) };
   });
+
+  // Flag para evitar concorrência de requisições durante o polling
+  const refreshInFlight = useRef(false);
+  // Ref para evitar closures obsoletos e sempre usar o dateRange atual no polling
+  const dateRangeRef = useRef(dateRange);
+  useEffect(() => {
+    dateRangeRef.current = dateRange;
+  }, [dateRange]);
 
   const fmt = (n: number | undefined | null) =>
     n !== undefined && n !== null
       ? new Intl.NumberFormat('pt-BR').format(n)
       : '-';
 
-  const loadDashboardData = async () => {
+  // Ao aplicar o filtro, atualiza os dados usando o intervalo atual
+  const applyDateRange = () => {
+    // Atualiza o URL para persistir o filtro selecionado sem depender de storage
+    const { inicio, fim } = dateRangeRef.current;
+    const url = new URL(window.location.href);
+    url.searchParams.set('inicio', inicio);
+    url.searchParams.set('fim', fim);
+    // Mantém o mesmo path (ex.: /dashboard/) e aplica apenas a query
+    window.history.replaceState(null, '', `${url.pathname}?${url.searchParams.toString()}`);
+    // Aplica a atualização de dados imediatamente
+    loadDashboardData();
+  };
+
+  const loadDashboardDataWith = async (inicio: string, fim: string) => {
     // Carrega Tickets Novos de forma independente
     try {
       const newTicketsData = await fetchNewTickets();
@@ -51,7 +82,7 @@ export default function App1() {
 
     // Carrega Métricas Gerais (não impacta Tickets Novos em caso de erro)
     try {
-      const gs = await fetchGeneralStats(dateRange.inicio, dateRange.fim);
+      const gs = await fetchGeneralStats(inicio, fim);
       setGeneralStats(gs);
     } catch (err) {
       console.error('Falha ao buscar Métricas Gerais (App1):', err);
@@ -59,7 +90,7 @@ export default function App1() {
 
     // Carrega Métricas por Nível (N1–N4)
     try {
-      const ls = await fetchLevelStats(dateRange.inicio, dateRange.fim);
+      const ls = await fetchLevelStats(inicio, fim);
       setLevelStats(ls);
     } catch (err) {
       console.error('Falha ao buscar Métricas por Nível (App1):', err);
@@ -67,15 +98,38 @@ export default function App1() {
 
     // Carrega Ranking de Técnicos (respeita intervalo de datas)
     try {
-      const rk = await fetchTechnicianRanking(dateRange.inicio, dateRange.fim);
+      const rk = await fetchTechnicianRanking(inicio, fim);
       setTechnicianRanking(rk);
     } catch (err) {
       console.error('Falha ao buscar Ranking de Técnicos (App1):', err);
     }
   };
 
+  const loadDashboardData = async () => {
+    const { inicio, fim } = dateRangeRef.current;
+    await loadDashboardDataWith(inicio, fim);
+  };
+
   useEffect(() => {
     loadDashboardData();
+  }, []);
+
+  // Polling de 15s (ou valor de VITE_REALTIME_POLL_INTERVAL_SEC) respeitando o dateRange atual
+  useEffect(() => {
+    const intervalMs = Number(import.meta.env.VITE_REALTIME_POLL_INTERVAL_SEC ?? 15000);
+    const id = setInterval(async () => {
+      if (refreshInFlight.current) return;
+      refreshInFlight.current = true;
+      try {
+        const { inicio, fim } = dateRangeRef.current;
+        await loadDashboardDataWith(inicio, fim);
+      } catch (err) {
+        console.error('Falha ao atualizar automaticamente (App1):', err);
+      } finally {
+        refreshInFlight.current = false;
+      }
+    }, intervalMs);
+    return () => clearInterval(id);
   }, []);
 
   // Atualiza o relógio em tempo real
@@ -109,10 +163,10 @@ export default function App1() {
           <DateRangePicker
             value={dateRange}
             onChange={setDateRange}
-            onApply={loadDashboardData}
+            onApply={applyDateRange}
             className="w-auto"
           />
-          <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
+          <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600" onClick={loadDashboardData}>
             <RotateCcw className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-3 pl-4 border-l border-white/20">
