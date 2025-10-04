@@ -2,9 +2,20 @@
 Cliente GLPI
 Funções para autenticação, configuração de entidade e busca paginada,
 com cache simples de sessão para evitar reautenticação por requisição.
+Lança exceções específicas para que a camada de API mapeie respostas HTTP neutras.
 """
+import os
+import time
+from typing import Any, Dict, List, Optional
+
 import requests
-from typing import Dict, List, Any, Optional
+
+from backend.logic.errors import GLPIAuthError, GLPINetworkError, GLPISearchError
+
+# Cache leve de sessão (reuso de Session-Token por TTL curto)
+_SESSION_HEADERS: Optional[Dict[str, str]] = None
+_SESSION_TS: float = 0.0
+SESSION_TTL_SEC = int(os.environ.get("SESSION_TTL_SEC", "300"))
 
 
 def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str]:
@@ -19,6 +30,11 @@ def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str
     Returns:
         Headers com session-token para uso nas próximas requisições
     """
+    # Cache de sessão: reutiliza se ainda válido
+    global _SESSION_HEADERS, _SESSION_TS
+    if _SESSION_HEADERS and (time.time() - _SESSION_TS) < SESSION_TTL_SEC:
+        return _SESSION_HEADERS
+
     # Endpoint de autenticação
     auth_url = f"{api_url}/initSession"
     
@@ -37,7 +53,7 @@ def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str
         session_token = auth_data.get('session_token')
         
         if not session_token:
-            raise Exception("Session token não encontrado na resposta")
+            raise GLPIAuthError("Token de sessão não encontrado", status_code=401)
         
         # Headers para próximas requisições
         session_headers = {
@@ -55,11 +71,21 @@ def authenticate(api_url: str, app_token: str, user_token: str) -> Dict[str, str
         
         entity_response = requests.post(change_entity_url, headers=session_headers, json=entity_data, timeout=(3, 6))
         entity_response.raise_for_status()
-        
+        # Atualiza cache de sessão
+        _SESSION_HEADERS = session_headers
+        _SESSION_TS = time.time()
+
         return session_headers
         
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Erro na autenticação ou configuração de entidade: {e}")
+    except requests.exceptions.Timeout:
+        raise GLPINetworkError("Timeout na autenticação/configuração de entidade", timeout=True)
+    except requests.exceptions.HTTPError as e:
+        status = getattr(e.response, 'status_code', None)
+        if status in (401, 403):
+            raise GLPIAuthError("Falha de autenticação GLPI", status_code=status)
+        raise GLPISearchError(f"Erro HTTP na autenticação/configuração (status={status})", status_code=status)
+    except requests.exceptions.RequestException:
+        raise GLPINetworkError("Falha de rede na autenticação/configuração de entidade")
 
 def search_paginated(
     headers: Dict[str, str], 
@@ -127,8 +153,15 @@ def search_paginated(
             
         return all_results
         
-    except requests.exceptions.RequestException as e:
-        raise Exception(f"Erro na busca paginada de {itemtype}: {e}")
+    except requests.exceptions.Timeout:
+        raise GLPINetworkError(f"Timeout na busca paginada de {itemtype}", timeout=True)
+    except requests.exceptions.HTTPError as e:
+        status = getattr(e.response, 'status_code', None)
+        if status in (401, 403):
+            raise GLPIAuthError("Falha de autenticação GLPI", status_code=status)
+        raise GLPISearchError(f"Erro HTTP na busca paginada de {itemtype} (status={status})", status_code=status)
+    except requests.exceptions.RequestException:
+        raise GLPINetworkError(f"Falha de rede na busca paginada de {itemtype}")
 
 
 def get_user_names_in_batch_with_fallback(headers: Dict[str, str], api_url: str, requester_ids: List[int]) -> Dict[int, str]:

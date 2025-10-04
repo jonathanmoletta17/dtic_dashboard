@@ -1,5 +1,6 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class TechnicianRankingItem(BaseModel):
@@ -7,9 +8,8 @@ class TechnicianRankingItem(BaseModel):
     tecnico: str
     tickets: int
     nivel: str
-
-    class Config:
-        from_attributes = True
+    # Pydantic v2: substitui class-based Config por ConfigDict
+    model_config = ConfigDict(from_attributes=True)
 
 
 class GeneralStats(BaseModel):

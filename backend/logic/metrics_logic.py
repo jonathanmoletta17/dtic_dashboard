@@ -3,10 +3,18 @@ Módulo de lógica de negócios para geração de métricas de estatísticas do 
 Implementação direta usando filtros de busca na API GLPI.
 """
 
-from typing import Dict, Any, Tuple
-import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Dict, Tuple
+
+import requests
 from requests.adapters import HTTPAdapter
+
+from backend.logic.criteria_helpers import add_date_range, add_status
+from backend.logic.errors import GLPIAuthError, GLPINetworkError, GLPISearchError
+from backend.logic.glpi_constants import (
+    FIELD_LEVEL,
+    STATUS,
+)
 
 
 def generate_level_stats(
@@ -14,12 +22,11 @@ def generate_level_stats(
     session_headers: Dict[str, str],
     inicio: str | None = None,
     fim: str | None = None,
-    campo_data: int = 15,
 ) -> Dict[str, Any]:
     """
     Conta tickets por nível usando filtros diretos na API GLPI:
-    - Hierarquia (campo 8) com searchtype=contains para "N1".."N4"
-    - Status (campo 12) com searchtype=equals para IDs 1..6
+    - Hierarquia (FIELD_LEVEL) com searchtype=contains para "N1".."N4"
+    - Status (FIELD_STATUS) com searchtype=equals para IDs definidos em STATUS
 
     Retorna um dicionário com as chaves N1..N4 nas agregações:
     { "N1": {"novos": int, "em_progresso": int, "pendentes": int, "resolvidos": int, "total": int }, ... }
@@ -32,33 +39,17 @@ def generate_level_stats(
                 "range": "0-0",
             }
 
-            # criteria 0: nível (campo 8)
+            # criteria 0: nível (FIELD_LEVEL)
             index = 0
-            params[f"criteria[{index}][field]"] = "8"
+            params[f"criteria[{index}][field]"] = str(FIELD_LEVEL)
             params[f"criteria[{index}][searchtype]"] = "contains"
             params[f"criteria[{index}][value]"] = level_value
             index += 1
 
-            # critérios de data (opcionais)
+            # critérios de data opcionais (FIELD_CREATED) e status (FIELD_STATUS)
             if inicio and fim:
-                fim_value = fim if len(fim) > 10 else f"{fim} 23:59:59"
-                params[f"criteria[{index}][link]"] = "AND"
-                params[f"criteria[{index}][field]"] = str(campo_data)
-                params[f"criteria[{index}][searchtype]"] = "morethan"
-                params[f"criteria[{index}][value]"] = inicio
-                index += 1
-
-                params[f"criteria[{index}][link]"] = "AND"
-                params[f"criteria[{index}][field]"] = str(campo_data)
-                params[f"criteria[{index}][searchtype]"] = "lessthan"
-                params[f"criteria[{index}][value]"] = fim_value
-                index += 1
-
-            # critério de status (campo 12)
-            params[f"criteria[{index}][link]"] = "AND"
-            params[f"criteria[{index}][field]"] = "12"
-            params[f"criteria[{index}][searchtype]"] = "equals"
-            params[f"criteria[{index}][value]"] = str(status_id)
+                add_date_range(params, inicio, fim)
+            add_status(params, status_id)
             try:
                 resp = session.get(url, headers=session_headers, params=params, timeout=(2, 4))
                 resp.raise_for_status()
@@ -68,11 +59,25 @@ def generate_level_stats(
                 except (TypeError, ValueError):
                     count = 0
                 return level_value, status_id, count
+            except requests.exceptions.Timeout:
+                raise GLPINetworkError("Timeout ao buscar métricas por nível", timeout=True)
+            except requests.exceptions.HTTPError as e:
+                status = getattr(e.response, 'status_code', None)
+                if status in (401, 403):
+                    raise GLPIAuthError("Falha de autenticação em métricas por nível", status_code=status)
+                raise GLPISearchError(f"Erro HTTP em métricas por nível (status={status})", status_code=status)
             except requests.exceptions.RequestException:
-                return level_value, status_id, 0
+                raise GLPINetworkError("Falha de rede ao buscar métricas por nível")
 
         levels = ["N1", "N2", "N3", "N4"]
-        statuses = [1, 2, 3, 4, 5, 6]
+        statuses = [
+            STATUS["NEW"],
+            STATUS["ASSIGNED"],
+            STATUS["PLANNED"],
+            STATUS["IN_PROGRESS"],
+            STATUS["SOLVED"],
+            STATUS["CLOSED"],
+        ]
         level_stats = {lvl: {"novos": 0, "em_progresso": 0, "pendentes": 0, "resolvidos": 0, "total": 0} for lvl in levels}
 
         session = requests.Session()
@@ -87,13 +92,13 @@ def generate_level_stats(
                     futures.append(executor.submit(fetch_count, session, lvl, st))
             for fut in as_completed(futures):
                 lvl, st, cnt = fut.result()
-                if st == 1:
+                if st == STATUS["NEW"]:
                     level_stats[lvl]["novos"] += cnt
-                elif st in (2, 3):
+                elif st in (STATUS["ASSIGNED"], STATUS["PLANNED"]):
                     level_stats[lvl]["em_progresso"] += cnt
-                elif st == 4:
+                elif st == STATUS["IN_PROGRESS"]:
                     level_stats[lvl]["pendentes"] += cnt
-                elif st in (5, 6):
+                elif st in (STATUS["SOLVED"], STATUS["CLOSED"]):
                     level_stats[lvl]["resolvidos"] += cnt
                 # Atualiza total incrementalmente
                 level_stats[lvl]["total"] = (
@@ -105,9 +110,12 @@ def generate_level_stats(
 
         return level_stats
 
+    except (GLPIAuthError, GLPISearchError, GLPINetworkError):
+        # Propaga erros específicos para serem mapeados pelo router
+        raise
     except Exception as e:
-        print(f"❌ Erro em generate_level_stats: {e}")
-        raise e
+        # Falhas não previstas na lógica
+        raise GLPISearchError("Erro interno na lógica de métricas por nível") from e
 
 
 def generate_general_stats(
@@ -115,17 +123,16 @@ def generate_general_stats(
     session_headers: Dict[str, str],
     inicio: str | None = None,
     fim: str | None = None,
-    campo_data: int = 15,
 ) -> Dict[str, int]:
     """
-    Conta tickets diretamente pelo Status (campo 12) usando /search/Ticket
+    Conta tickets diretamente pelo Status (FIELD_STATUS) usando /search/Ticket
     e retorna agregados conforme o dashboard:
-      - novos: 1
-      - em_progresso: 2 + 3
-      - pendentes: 4
-      - resolvidos: 5 + 6
+      - novos: STATUS["NEW"]
+      - em_progresso: STATUS["ASSIGNED"] + STATUS["PLANNED"]
+      - pendentes: STATUS["IN_PROGRESS"]
+      - resolvidos: STATUS["SOLVED"] + STATUS["CLOSED"]
     Se "inicio" e "fim" forem fornecidos, aplica filtro de intervalo de datas
-    usando o campo especificado em "campo_data" (padrão 15 = data de criação).
+    usando sempre a data de criação (FIELD_CREATED).
     """
     try:
         def count_status(status_id: int) -> int:
@@ -135,36 +142,31 @@ def generate_general_stats(
                 "range": "0-0",
             }
 
-            index = 0
             if inicio and fim:
-                fim_value = fim if len(fim) > 10 else f"{fim} 23:59:59"
-                params[f"criteria[{index}][field]"] = str(campo_data)
-                params[f"criteria[{index}][searchtype]"] = "morethan"
-                params[f"criteria[{index}][value]"] = inicio
-                index += 1
-                params[f"criteria[{index}][link]"] = "AND"
-                params[f"criteria[{index}][field]"] = str(campo_data)
-                params[f"criteria[{index}][searchtype]"] = "lessthan"
-                params[f"criteria[{index}][value]"] = fim_value
-                index += 1
-
-            if index > 0:
-                params[f"criteria[{index}][link]"] = "AND"
-            params[f"criteria[{index}][field]"] = "12"
-            params[f"criteria[{index}][searchtype]"] = "equals"
-            params[f"criteria[{index}][value]"] = str(status_id)
-            resp = requests.get(url, headers=session_headers, params=params, timeout=(2, 4))
-            resp.raise_for_status()
-            data = resp.json()
+                add_date_range(params, inicio, fim)
+            add_status(params, status_id)
             try:
-                return int(data.get("totalcount", 0))
-            except (TypeError, ValueError):
-                return 0
+                resp = requests.get(url, headers=session_headers, params=params, timeout=(2, 4))
+                resp.raise_for_status()
+                data = resp.json()
+                try:
+                    return int(data.get("totalcount", 0))
+                except (TypeError, ValueError):
+                    return 0
+            except requests.exceptions.Timeout:
+                raise GLPINetworkError("Timeout ao buscar métricas gerais", timeout=True)
+            except requests.exceptions.HTTPError as e:
+                status = getattr(e.response, 'status_code', None)
+                if status in (401, 403):
+                    raise GLPIAuthError("Falha de autenticação em métricas gerais", status_code=status)
+                raise GLPISearchError(f"Erro HTTP em métricas gerais (status={status})", status_code=status)
+            except requests.exceptions.RequestException:
+                raise GLPINetworkError("Falha de rede ao buscar métricas gerais")
 
-        novos = count_status(1)
-        em_progresso = count_status(2) + count_status(3)
-        pendentes = count_status(4)
-        resolvidos = count_status(5) + count_status(6)
+        novos = count_status(STATUS["NEW"])
+        em_progresso = count_status(STATUS["ASSIGNED"]) + count_status(STATUS["PLANNED"])
+        pendentes = count_status(STATUS["IN_PROGRESS"])
+        resolvidos = count_status(STATUS["SOLVED"]) + count_status(STATUS["CLOSED"])
 
         return {
             "novos": novos,
@@ -173,6 +175,7 @@ def generate_general_stats(
             "resolvidos": resolvidos,
         }
 
+    except (GLPIAuthError, GLPISearchError, GLPINetworkError):
+        raise
     except Exception as e:
-        print(f"❌ Erro em generate_general_stats: {e}")
-        raise e
+        raise GLPISearchError("Erro interno na lógica de métricas gerais") from e
