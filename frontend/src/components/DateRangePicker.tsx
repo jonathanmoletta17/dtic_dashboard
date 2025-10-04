@@ -6,7 +6,7 @@ type DateRange = { inicio: string; fim: string };
 
 type Props = {
   value: DateRange;
-  onChange: (next: DateRange) => void;
+  onChange: (_next: DateRange) => void;
   onApply?: () => void;
   className?: string;
 };

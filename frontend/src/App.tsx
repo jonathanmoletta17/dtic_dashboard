@@ -2,23 +2,18 @@ import {
   useState, 
   useEffect 
 } from 'react';
-import { 
-  Bell, 
-  ChevronLeft, 
-  RotateCcw, 
-  Search, 
-  Settings, 
-  User, 
+import {
+  RotateCcw,
+  User,
   TrendingUp,
   AlertTriangle,
   Clock,
   CheckCircle,
   Activity,
   Award,
-  Ticket
+  Ticket,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
 import { Badge } from "./components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchNewTickets, fetchGeneralStats, fetchLevelStats, fetchTechnicianRanking } from './services/api';
@@ -70,9 +65,9 @@ export default function App1() {
       console.error('Falha ao buscar Métricas por Nível (App1):', err);
     }
 
-    // Carrega Ranking de Técnicos
+    // Carrega Ranking de Técnicos (respeita intervalo de datas)
     try {
-      const rk = await fetchTechnicianRanking();
+      const rk = await fetchTechnicianRanking(dateRange.inicio, dateRange.fim);
       setTechnicianRanking(rk);
     } catch (err) {
       console.error('Falha ao buscar Ranking de Técnicos (App1):', err);
@@ -111,13 +106,6 @@ export default function App1() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-white/20 rounded-lg px-4 w-80">
-            <Search className="w-4 h-4 text-white/80" />
-            <Input 
-              placeholder="Buscar chamados... (Ctrl+K)" 
-              className="bg-transparent border-none text-white placeholder:text-white/70 flex-1"
-            />
-          </div>
           <DateRangePicker
             value={dateRange}
             onChange={setDateRange}
