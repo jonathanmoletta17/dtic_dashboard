@@ -1,0 +1,11 @@
+services:
+  backend:
+    build:
+      context: .
+    container_name: dtic-dashboard-backend
+    env_file:
+      - backend/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Logs go to stdout; keep image minimal and simple

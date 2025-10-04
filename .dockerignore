@@ -1,0 +1,13 @@
+# Excluir scripts de debug e testes do build de produção
+backend/debug_output/
+backend/tests/
+
+# Opcionalmente, ignore caches e artefatos comuns (não solicitado, mas seguro)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.cache
+node_modules/
+frontend/.vite/
