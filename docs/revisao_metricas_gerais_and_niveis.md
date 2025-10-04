@@ -24,7 +24,8 @@ Seu script segue uma abordagem baseada em buscar todos os vínculos usuário-gru
 
 **Problemas potenciais e limitações encontrados:**
 - **API Modularizada:** Seu projeto provavelmente está usando a API REST do GLPI com autenticação via headers.
-- **Busca Group_User:** Depende do endpoint “Group_User” e dos campos numéricos (ex: '2', '3'). Certifique-se de que os nomes dos campos estão corretos para sua versão do GLPI.
+- (Histórico) **Busca Group_User:** Dependia do endpoint “Group_User” e de campos numéricos (ex: '2', '3').
+  (Atual) O backend foi refatorado para usar filtros diretos por ticket, com `FIELD_LEVEL` (hierarquia), `FIELD_STATUS` (status) e `FIELD_CREATED` (campo de data de criação), eliminando a dependência de `Group_User`.
 - **Busca Tickets:** Critérios de busca de tickets são construídos manualmente como lista de dicionários, e enviados para a função `glpi_client.search_paginated` — é preciso garantir que seu `glpi_client` realmente aceite esses parâmetros e os transforma no formato correto para o GLPI.
 - **Status Mapping:** O mapeamento de status está diferente do comum do GLPI (no seu, 3=pendentes, 6=“resolvidos”). Verifique se esses IDs fazem sentido na sua base.
 - **Campos forçados:** Os campos obrigatórios (`forcedisplay`) podem variar conforme a configuração do GLPI/API.
@@ -40,8 +41,8 @@ No monolito (ver contexto da `GLPIService`), a abordagem é:
 - O agrupamento é feito na query e paginado.
 
 **Ou seja:**
-- **No monolito:** O filtro de “nível” é por campo 8 (hierarquia), e de status por campo 12, ambos direto na query da API GLPI.
-- **No script enviado:** O filtro de “nível” é feito via Group_User e técnico atribuído ao ticket, tudo em Python (mais lento/incompleto).
+- **No monolito:** O filtro de “nível” é por `FIELD_LEVEL` (8, hierarquia), e de status por `FIELD_STATUS` (12), ambos direto na query da API GLPI.
+- **No backend atual:** Mesma abordagem do monolito — filtros diretos por nível e status na própria API GLPI.
 
 ---
 

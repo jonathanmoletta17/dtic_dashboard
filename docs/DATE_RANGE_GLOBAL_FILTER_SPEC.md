@@ -11,28 +11,27 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
 - Componente global `DateRangePicker` posicionado no cabeçalho do dashboard.
 - Padrões:
   - Intervalo inicial: últimos 30 dias, ou mês corrente (configurável).
-  - Campo de data padrão: criação (`field 15`). O usuário pode alternar para modificação (`field 19`) via seletor simples (opcional).
+  - Campo de data padrão: criação (`field 15`).
 - Interações:
   - Seleção deve validar `inicio <= fim`.
   - Inclusivo: `inicio` às 00:00:00 e `fim` às 23:59:59.
-  - Estado persistido na URL (`?inicio=YYYY-MM-DD&fim=YYYY-MM-DD&campo_data=15`) para deep-link e compartilhamento.
+- Estado persistido na URL (`?inicio=YYYY-MM-DD&fim=YYYY-MM-DD`) para deep-link e compartilhamento.
 
 ## Contrato de API (Backend)
 - Parâmetros de query padronizados em todos endpoints do dashboard:
   - `inicio` (string, `YYYY-MM-DD`, obrigatório)
   - `fim` (string, `YYYY-MM-DD`, obrigatório)
-  - `campo_data` (int, opcional; default `15`=criação, `19`=modificação)
 
 - Exemplos de endpoints (nomes ilustrativos com base em `backend/api/*.py`):
-  - `GET /stats/general?inicio=2025-10-01&fim=2025-10-31&campo_data=15`
-  - `GET /stats/levels?inicio=2025-10-01&fim=2025-10-31&campo_data=19`
-  - `GET /ranking/technicians?inicio=2025-10-01&fim=2025-10-31&campo_data=15&top=10`
-  - `GET /tickets/new?inicio=2025-10-01&fim=2025-10-31&campo_data=15`
+  - `GET /stats/general?inicio=2025-10-01&fim=2025-10-31`
+  - `GET /stats/levels?inicio=2025-10-01&fim=2025-10-31`
+  - `GET /ranking/technicians?inicio=2025-10-01&fim=2025-10-31&top=10`
+  - `GET /tickets/new?inicio=2025-10-01&fim=2025-10-31`
 
 - Respostas devem incluir metadados do intervalo aplicado:
 ```json
 {
-  "intervalo": {"inicio": "2025-10-01", "fim": "2025-10-31", "campo_data": 15},
+  "intervalo": {"inicio": "2025-10-01", "fim": "2025-10-31"},
   "data": { /* métrica específica */ }
 }
 ```
@@ -42,7 +41,6 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
 - Campo de nível (hierarquia): `field 8` com valores `N1|N2|N3|N4` (contains).
 - Campos de data:
   - Criação: `field 15`
-  - Modificação: `field 19`
 
 - Agregações de status (dashboard):
   - `novos`: `status_id=1`
@@ -51,12 +49,12 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
   - `resolvidos`: `status_id=5` e `6`
 
 - Critério de data por intervalo (aplicado em todas as buscas `/search/Ticket`):
-  - `morethan >= inicio` (campo `15` ou `19`)
+  - `morethan >= inicio` (campo `15`)
   - `lessthan <= fim 23:59:59`
 
 ## Arquitetura de Backend (Proposta)
 - `schemas.py`
-  - Definir `DateRange` (pydantic): `inicio: date`, `fim: date`, `campo_data: int = 15`.
+  - Definir `DateRange` (pydantic): `inicio: date`, `fim: date`.
 - `logic/utils/date_filters.py` (novo util):
   - `build_date_criteria(start: date, end: date, field_id: int) -> List[Criteria]` retorna critérios GLPI consistentes.
   - Responsável por normalizar `fim` para `23:59:59`, validar intervalo e converter datas.
@@ -66,23 +64,23 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
   - `tickets_logic.py`: aplicar o mesmo critério a “novos por período”.
 - `api/*_router.py`:
   - Parsear `DateRange` em todos handlers do dashboard.
-  - Propagar `DateRange` às funções de lógica.
+  - Propagar `DateRange` às funções de lógica (usando sempre criação).
 
 ## Arquitetura de Frontend (Proposta)
 - Componente: `src/components/DateRangePicker.tsx`
-  - Props: `value`, `onChange`, `fieldOption` (criação/modificação).
+  - Props: `value`, `onChange`.
   - Validação client-side simples e mensagens amigáveis.
 - Estado Global: `src/services/dateFilterContext.ts`
-  - `DateFilterProvider` com estado `{ inicio, fim, campo_data }`.
+  - `DateFilterProvider` com estado `{ inicio, fim }`.
   - Hook `useDateFilter()` para leitura/atualização do estado.
   - Sincronização com URL (query params) na montagem e a cada alteração.
 - Serviços: `src/services/api.ts`
-  - Funções que leem o estado do filtro global e anexam `inicio`, `fim`, `campo_data` a todas requisições do dashboard.
+  - Funções que leem o estado do filtro global e anexam `inicio` e `fim` a todas requisições do dashboard.
   - Requisições existentes mantidas; apenas adicionam os params.
 
 ## Fluxo End-to-End
 1. Usuário seleciona intervalo no `DateRangePicker`.
-2. Contexto global atualiza `{inicio, fim, campo_data}` e sincroniza na URL.
+2. Contexto global atualiza `{inicio, fim}` e sincroniza na URL.
 3. Páginas do dashboard disparam refetch das métricas.
 4. Backend recebe params e aplica `build_date_criteria` em todas as consultas GLPI.
 5. Respostas retornam dados + metadados do intervalo, garantindo consistência visual.
@@ -93,7 +91,7 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
 - Resiliência: defaults seguros se params ausentes; mensagens claras em erro de validação.
 - Desempenho:
   - Ranking: consultas em paralelo por técnico com `range=0-0` (apenas `totalcount`).
-  - Cache: chavear por `inicio|fim|campo_data|endpoint` com TTL curto.
+  - Cache: chavear por `inicio|fim|endpoint` com TTL curto.
   - Evitar over-fetch, limitar `top` em ranking.
 - Segurança: validar formato de datas, evitar injeção em critérios.
 - Timezone: fixar timezone (servidor) e documentar.
@@ -123,15 +121,15 @@ Objetivo: permitir ao usuário selecionar um intervalo de datas único (global) 
 ## Exemplos
 Requests:
 ```
-GET /stats/general?inicio=2025-10-01&fim=2025-10-31&campo_data=15
-GET /stats/levels?inicio=2025-10-01&fim=2025-10-31&campo_data=19
-GET /ranking/technicians?inicio=2025-10-01&fim=2025-10-31&campo_data=15&top=10
+GET /stats/general?inicio=2025-10-01&fim=2025-10-31
+GET /stats/levels?inicio=2025-10-01&fim=2025-10-31
+GET /ranking/technicians?inicio=2025-10-01&fim=2025-10-31&top=10
 ```
 
 Response (general):
 ```json
 {
-  "intervalo": {"inicio": "2025-10-01", "fim": "2025-10-31", "campo_data": 15},
+  "intervalo": {"inicio": "2025-10-01", "fim": "2025-10-31"},
   "data": {
     "novos": 3,
     "em_progresso": 7,

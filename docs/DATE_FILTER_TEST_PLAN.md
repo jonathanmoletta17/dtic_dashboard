@@ -13,11 +13,10 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
 - Python 3.10+ e `requests` instalado (já previsto no `backend/requirements.txt`).
 
 ## Mapeamento de Campos GLPI (Tickets)
-- `12` — Status do ticket.
-- `8` — Hierarquia/Nível (strings contendo “N1”, “N2”, …). [Usado em métricas por nível]
-- `5` — `users_id_tech` (técnico atribuído). [Usado em ranking de técnicos]
-- `15` — Data de criação do ticket (creation/opening date). [Default para filtro de data]
-- `19` — Data de modificação/atualização (last update). [Opcional]
+- `12` — Status do ticket (`FIELD_STATUS`).
+- `8` — Hierarquia/Nível (`FIELD_LEVEL`, strings contendo “N1”, “N2”, …). [Usado em métricas por nível]
+- `5` — `users_id_tech` (técnico atribuído, `FIELD_TECH`). [Usado em ranking de técnicos]
+- `15` — Data de criação do ticket (`FIELD_CREATED`). [Default para filtro de data]
 - Observação: Algumas instâncias GLPI usam campo distinto para “data de fechamento” (ex.: `closedate`). Se o objetivo for “tickets resolvidos no intervalo”, validar qual é o campo correto na sua instância e ajustar.
 
 ## Convenções de Filtro de Data
@@ -33,11 +32,12 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
 - `em_progresso`: `2 + 3`
 - `pendentes`: `4`
 - `resolvidos`: `5 + 6`
+Nota: No backend, os IDs de status são centralizados em `STATUS` (NEW, ASSIGNED, PLANNED, IN_PROGRESS, SOLVED, CLOSED).
 
 ## Estrutura dos Critérios (`/search/Ticket`)
 - Geral por data e status:
-  - `criteria[0]`: `{ field: <campo_data>, searchtype: morethan, value: <inicio> }`
-  - `criteria[1]`: `{ link: AND, field: <campo_data>, searchtype: lessthan, value: <fim> }`
+  - `criteria[0]`: `{ field: 15, searchtype: morethan, value: <inicio> }`  (campo de criação)
+  - `criteria[1]`: `{ link: AND, field: 15, searchtype: lessthan, value: <fim> }`  (campo de criação)
   - `criteria[2]`: `{ link: AND, field: 12, searchtype: equals, value: <status_id> }`
 - Por nível (adicionar filtro de hierarquia):
   - `criteria[x]`: `{ link: AND, field: 8, searchtype: contains, value: N1|N2|N3|N4 }`
@@ -50,7 +50,6 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
 - Arquivo: `backend/debug_output/test_metrics_gerais_por_data.py` (já criado).
 - Uso:
   - `python backend/debug_output/test_metrics_gerais_por_data.py --inicio 2025-10-01 --fim 2025-10-31`
-  - `python backend/debug_output/test_metrics_gerais_por_data.py --inicio 2025-10-01 --fim 2025-10-31 --campo-data 19`
 - Saída:
   - JSON em `backend/debug_output/output/metrics_gerais_por_data.json` com campos: `novos`, `em_progresso`, `pendentes`, `resolvidos`, `total`, além do intervalo usado.
 - Critério de sucesso:
@@ -61,7 +60,7 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
 - Lógica:
   - Para cada nível em `N1..N4` e cada `status_id` em `1..6`, aplicar os critérios de data + hierarquia + status, somando nos agregados `novos`, `em_progresso`, `pendentes`, `resolvidos` e total.
 - Pseudocódigo:
-  - `count_level_status(headers, api_url, nivel, status_id, inicio, fim, campo_data)` → retorna `totalcount`.
+  - `count_level_status(headers, api_url, nivel, status_id, inicio, fim)` → retorna `totalcount`.
   - Estrutura de resultado:
     - `{ "N1": { "novos": n, "em_progresso": x, "pendentes": y, "resolvidos": z, "total": t }, ... }`
 - Critério de sucesso:
@@ -88,7 +87,7 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
 
 ## Formato de Saída e Persistência
 - Cada script deve persistir JSON em `backend/debug_output/output/` com nome descritivo.
-- Incluir no JSON os parâmetros usados (intervalo, campo de data, filtros adicionais) para rastreabilidade.
+ - Incluir no JSON os parâmetros usados (intervalo e filtros adicionais) para rastreabilidade.
 
 ## Comparação com Endpoints do Backend
 - Endpoints relevantes:
@@ -96,7 +95,7 @@ Este documento orienta, passo a passo, como validar filtros de data para todas a
   - `GET /api/v1/status-niveis`
   - `GET /api/v1/ranking-tecnicos`
   - `GET /api/v1/tickets-novos`
-- Observação: Os endpoints atuais não aceitam filtros de data. A comparação serve como validação qualitativa na mesma janela temporal (quando fizer sentido) e para detectar discrepâncias.
+- Observação: Os endpoints aplicam filtros de data apenas pela data de criação (`FIELD_CREATED=15`). Informe `inicio` e `fim` na URL para comparar com os scripts.
 
 ## Troubleshooting
 - `ECONNREFUSED` no proxy frontend: garantir que backend está estável; evitar `--reload` durante testes de carga; confirmar `vite.config.ts` proxy para `http://127.0.0.1:8000`.
