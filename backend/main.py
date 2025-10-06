@@ -21,7 +21,7 @@ from backend.utils.logging_setup import configure_logging
 configure_logging()
 
 # Os roteadores são importados DEPOIS que as variáveis de ambiente foram carregadas
-from backend.api import ranking_router, stats_router, tickets_router
+from backend.api import ranking_router, stats_router, tickets_router, maintenance_router
 
 # Cria a instância principal da aplicação FastAPI
 app = FastAPI(
@@ -40,6 +40,7 @@ def read_root():
 app.include_router(ranking_router.router)
 app.include_router(stats_router.router)
 app.include_router(tickets_router.router)
+app.include_router(maintenance_router.router)
 
 # Monta os estáticos do frontend produzidos pelo Vite sob /dashboard
 FRONTEND_BUILD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend_build")
