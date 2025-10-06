@@ -16,7 +16,7 @@ from backend.schemas_maintenance import (
     MaintenanceNewTicketItem
 )
 from backend.logic.errors import GLPIAuthError, GLPINetworkError, GLPISearchError
-from backend.utils.cache import get_cached, set_cached
+from backend.utils.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def get_maintenance_general_stats(inicio: str, fim: str):
     """
     # Verificar cache
     cache_key = f"maintenance_stats_{inicio}_{fim}"
-    cached = get_cached(cache_key)
+    cached = cache.get(cache_key)
     if cached:
         return cached
     
@@ -61,7 +61,7 @@ def get_maintenance_general_stats(inicio: str, fim: str):
         )
         
         result = MaintenanceGeneralStats(**stats)
-        set_cached(cache_key, result)
+        cache.set(cache_key, result)
         logger.info(
             "endpoint=/manutencao/stats-gerais inicio=%s fim=%s novos=%d pendentes=%d planejados=%d resolvidos=%d",
             inicio, fim, stats['novos'], stats['pendentes'], stats['planejados'], stats['resolvidos']
@@ -97,7 +97,7 @@ def get_entity_ranking(inicio: str, fim: str, top: Optional[int] = 10):
     """
     # Verificar cache
     cache_key = f"maintenance_entity_rank_{inicio}_{fim}_{top}"
-    cached = get_cached(cache_key)
+    cached = cache.get(cache_key)
     if cached:
         return cached
     
@@ -122,7 +122,7 @@ def get_entity_ranking(inicio: str, fim: str, top: Optional[int] = 10):
         )
         
         result = [EntityRankingItem(**item) for item in ranking]
-        set_cached(cache_key, result)
+        cache.set(cache_key, result)
         logger.info(
             "endpoint=/manutencao/ranking-entidades inicio=%s fim=%s count=%d",
             inicio, fim, len(result)
@@ -158,7 +158,7 @@ def get_category_ranking(inicio: str, fim: str, top: Optional[int] = 10):
     """
     # Verificar cache
     cache_key = f"maintenance_category_rank_{inicio}_{fim}_{top}"
-    cached = get_cached(cache_key)
+    cached = cache.get(cache_key)
     if cached:
         return cached
     
@@ -183,7 +183,7 @@ def get_category_ranking(inicio: str, fim: str, top: Optional[int] = 10):
         )
         
         result = [CategoryRankingItem(**item) for item in ranking]
-        set_cached(cache_key, result)
+        cache.set(cache_key, result)
         logger.info(
             "endpoint=/manutencao/ranking-categorias inicio=%s fim=%s count=%d",
             inicio, fim, len(result)
@@ -217,7 +217,7 @@ def get_new_tickets(limit: Optional[int] = 10):
     """
     # Verificar cache
     cache_key = f"maintenance_new_tickets_{limit}"
-    cached = get_cached(cache_key)
+    cached = cache.get(cache_key)
     if cached:
         return cached
     
@@ -240,7 +240,7 @@ def get_new_tickets(limit: Optional[int] = 10):
         )
         
         result = [MaintenanceNewTicketItem(**ticket) for ticket in tickets]
-        set_cached(cache_key, result)
+        cache.set(cache_key, result)
         logger.info(
             "endpoint=/manutencao/tickets-novos count=%d",
             len(result)
