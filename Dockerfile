@@ -13,18 +13,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies first for better layer caching
-COPY backend/requirements.txt /app/backend/requirements.txt
+COPY apps/dtic/backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Copy backend source
-COPY backend/ /app/backend/
+COPY apps/dtic/backend/ /app/backend/
 
 # Build frontend in a separate lightweight stage and copy built assets
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json ./
+COPY apps/dtic/frontend/package.json apps/dtic/frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
-COPY frontend/ ./
+COPY apps/dtic/frontend/ ./
 # Build with base path /dashboard/ to serve under that mount
 RUN npm run build -- --base=/dashboard/
 
