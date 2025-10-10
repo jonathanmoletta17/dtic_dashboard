@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { fetchNewTickets, fetchGeneralStats, fetchLevelStats, fetchTechnicianRanking } from './services/api';
 import type { NewTicketItem, GeneralStats, LevelStats, TechnicianRankingItem } from './types/api.d';
 import { DateRangePicker } from './components/DateRangePicker';
+import StatusItem from "./components/StatusItem";
 
 export default function App1() {
   const [newTickets, setNewTickets] = useState<NewTicketItem[] | null>(null);
@@ -116,7 +117,7 @@ export default function App1() {
 
   // Polling de 15s (ou valor de VITE_REALTIME_POLL_INTERVAL_SEC) respeitando o dateRange atual
   useEffect(() => {
-    const intervalMs = Number(import.meta.env.VITE_REALTIME_POLL_INTERVAL_SEC ?? 15000);
+    const intervalMs = Number((import.meta as any).env?.VITE_REALTIME_POLL_INTERVAL_SEC ?? 15000);
     const id = setInterval(async () => {
       if (refreshInFlight.current) return;
       refreshInFlight.current = true;
@@ -138,20 +139,12 @@ export default function App1() {
     return () => clearInterval(id);
   }, []);
 
-  // Helper para abreviar nome do técnico (Primeiro nome + inicial do último)
-  const shortName = (name: string) => {
-    const parts = (name || '').trim().split(/\s+/);
-    if (parts.length === 0) return '-';
-    if (parts.length === 1) return parts[0];
-    const first = parts[0];
-    const lastInitial = parts[parts.length - 1].charAt(0);
-    return `${first} ${lastInitial}.`;
-  };
+  // Removido: abreviação de nome do técnico (mantemos apenas o nome completo)
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
-      <header className="bg-[#5A9BD4] text-white p-3 px-6 flex items-center justify-between shadow-md">
+      <header className="bg-[#5A9BD4] text-white p-3 px-6 flex items-center justify-between shadow-md shrink-0">
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-xl font-semibold">DTIC - Métricas</h1>
@@ -181,7 +174,7 @@ export default function App1() {
       </header>
 
       {/* Content */}
-      <div className="p-6 bg-gray-100 h-[calc(100vh-80px)] overflow-y-auto overflow-x-hidden">
+      <div className="p-6 bg-gray-100 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex gap-4 h-full">
           {/* Left Column - Dashboard Stats */}
           <div className="flex-1 min-w-0 flex flex-col">
@@ -259,34 +252,10 @@ export default function App1() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
-                        Novos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.novos) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                        Em Progr.
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.em_progresso) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-                        Pendentes
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.pendentes) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Resolvidos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N1.resolvidos) : '-'}</span>
-                    </div>
+                    <StatusItem label="Novos" value={levelStats ? fmt(levelStats.N1.novos) : '-'} dotClassName="bg-[#5A9BD4]" />
+                    <StatusItem label="Em Progr." value={levelStats ? fmt(levelStats.N1.em_progresso) : '-'} dotClassName="bg-orange-500" />
+                    <StatusItem label="Pendentes" value={levelStats ? fmt(levelStats.N1.pendentes) : '-'} dotClassName="bg-amber-500" />
+                    <StatusItem label="Resolvidos" value={levelStats ? fmt(levelStats.N1.resolvidos) : '-'} dotClassName="bg-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -304,34 +273,10 @@ export default function App1() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
-                        Novos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.novos) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                        Em Progr.
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.em_progresso) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-                        Pendentes
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.pendentes) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Resolvidos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N2.resolvidos) : '-'}</span>
-                    </div>
+                    <StatusItem label="Novos" value={levelStats ? fmt(levelStats.N2.novos) : '-'} dotClassName="bg-[#5A9BD4]" />
+                    <StatusItem label="Em Progr." value={levelStats ? fmt(levelStats.N2.em_progresso) : '-'} dotClassName="bg-orange-500" />
+                    <StatusItem label="Pendentes" value={levelStats ? fmt(levelStats.N2.pendentes) : '-'} dotClassName="bg-amber-500" />
+                    <StatusItem label="Resolvidos" value={levelStats ? fmt(levelStats.N2.resolvidos) : '-'} dotClassName="bg-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -349,34 +294,10 @@ export default function App1() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
-                        Novos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.novos) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                        Em Progr.
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.em_progresso) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-                        Pendentes
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.pendentes) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Resolvidos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N3.resolvidos) : '-'}</span>
-                    </div>
+                    <StatusItem label="Novos" value={levelStats ? fmt(levelStats.N3.novos) : '-'} dotClassName="bg-[#5A9BD4]" />
+                    <StatusItem label="Em Progr." value={levelStats ? fmt(levelStats.N3.em_progresso) : '-'} dotClassName="bg-orange-500" />
+                    <StatusItem label="Pendentes" value={levelStats ? fmt(levelStats.N3.pendentes) : '-'} dotClassName="bg-amber-500" />
+                    <StatusItem label="Resolvidos" value={levelStats ? fmt(levelStats.N3.resolvidos) : '-'} dotClassName="bg-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -394,34 +315,10 @@ export default function App1() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-[#5A9BD4] rounded-full"></span>
-                        Novos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.novos) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                        Em Progr.
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.em_progresso) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
-                        Pendentes
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.pendentes) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Resolvidos
-                      </span>
-                      <span className="font-medium text-gray-900 text-sm">{levelStats ? fmt(levelStats.N4.resolvidos) : '-'}</span>
-                    </div>
+                    <StatusItem label="Novos" value={levelStats ? fmt(levelStats.N4.novos) : '-'} dotClassName="bg-[#5A9BD4]" />
+                    <StatusItem label="Em Progr." value={levelStats ? fmt(levelStats.N4.em_progresso) : '-'} dotClassName="bg-orange-500" />
+                    <StatusItem label="Pendentes" value={levelStats ? fmt(levelStats.N4.pendentes) : '-'} dotClassName="bg-amber-500" />
+                    <StatusItem label="Resolvidos" value={levelStats ? fmt(levelStats.N4.resolvidos) : '-'} dotClassName="bg-green-500" />
                   </div>
                 </CardContent>
               </Card>
@@ -454,15 +351,15 @@ export default function App1() {
                     }
                   }}
                 >
-                  <div className="inline-flex w-max gap-3">
+                  <div className="inline-flex w-max gap-3 pb-2">
                     {technicianRanking.map((tech, idx) => {
                       const isFirst = idx === 0;
                       const isSecond = idx === 1;
                       const isThird = idx === 2;
                       const isTop3 = isFirst || isSecond || isThird;
                       const baseClasses = isTop3
-                        ? 'flex-shrink-0 w-56 bg-gradient-to-br text-white p-3 rounded-lg shadow-sm'
-                        : 'flex-shrink-0 w-56 bg-gray-50 border border-gray-200 text-gray-900 p-3 rounded-lg shadow-sm';
+                        ? 'flex-shrink-0 tech-card-fixed bg-gradient-to-br text-white p-3 rounded-lg shadow-sm'
+                        : 'flex-shrink-0 tech-card-fixed bg-gray-50 border border-gray-200 text-gray-900 p-3 rounded-lg shadow-sm';
                       const gradientClasses = isFirst
                         ? 'from-[#5A9BD4] to-[#4A8BC2]'
                         : isSecond
@@ -484,8 +381,7 @@ export default function App1() {
                             <Badge className={`${badgeClasses} mb-2 font-medium text-xs`} variant={isTop3 ? undefined : 'outline'}>
                               #{idx + 1}
                             </Badge>
-                            <p className={`text-xs font-medium mb-1 ${isTop3 ? '' : 'text-gray-900'}`}>{shortName(tech.tecnico)}</p>
-                            <p className={`text-xs mb-2 ${isFirst ? 'text-blue-100' : isSecond ? 'text-slate-200' : isThird ? 'text-orange-100' : 'text-gray-600'}`}>{tech.tecnico}</p>
+                            <p className={`text-xs font-semibold mb-2 clamp-2 ${isTop3 ? 'text-white' : 'text-black'}`}>{tech.tecnico}</p>
                             <div className="space-y-1">
                               <div className="text-xs">
                                 <span className={`${isTop3 ? (isFirst ? 'text-blue-100' : isSecond ? 'text-slate-200' : 'text-orange-100') : 'text-gray-600'}`}>Tickets:</span>
